@@ -1,0 +1,22 @@
+{{ define "navbar" }}
+
+<nav
+    class="w-[calc(100%-2rem)] z-50 rounded-lg m-4 h-16 shadow-sm top-0 left-0 fixed flex items-center drop-shadow-xl justify-between bg-custom-secondary px-8">
+    <div class="flex space-x-4">
+        <a href="/" class="hover:underline">Create!</a>
+        <a href="/library" class="hover:underline">Library</a>
+        <a href="/explore" class="hover:underline">Explore</a>
+    </div>
+    <div class="flex space-x-4">
+        {{ if .auth }}
+            <a href="/user" class="hover:underline">Welcome {{ .username }}!!!</a>
+            <a hx-post="/api/v1/logout" hx-on::after-request="window.location.href = '/'" hx-swap="none" class="hover:underline hover:cursor-pointer">Logout</a>
+        {{else}}
+            <a href="/login" class="hover:underline">Login</a>
+            <a href="/register" class="hover:underline">Register</a>
+        {{end}}
+
+    </div>
+</nav>
+
+{{ end }}

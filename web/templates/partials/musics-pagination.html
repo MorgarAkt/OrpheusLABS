@@ -1,0 +1,115 @@
+{{ define "musics-pagination"}}
+
+<div class="w-full grid grid-cols-2 lg:grid-cols-4 gap-6">
+    {{range .Music}}
+    <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+        <img src="{{.CoverArt}}" alt="{{.Title}} by {{.Artist}}" class="w-full h-48 object-cover">
+        <div class="p-4">
+            <h3 class="font-bold text-lg text-custom-text truncate">{{.Title}}</h3>
+            <p class="text-custom-text truncate">{{.Artist}}</p>
+            <p class="text-custom-text text-sm">{{.Genre}} • {{.Year}}</p>
+            <div class="flex justify-between items-center mt-4">
+                <button class="text-custom-primary hover:text-opacity-80" hx-post="/api/music/{{.ID}}/play"
+                    hx-swap="none">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
+                        viewBox="0 0 16 16">
+                        <path
+                            d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z" />
+                    </svg>
+                </button>
+                <div class="flex space-x-3">
+                    <button class="text-custom-text hover:text-custom-primary" hx-post="/api/music/{{.ID}}/favorite"
+                        hx-swap="outerHTML">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                            class="{{if .IsFavorite}}text-custom-primary{{end}}" viewBox="0 0 16 16">
+                            <path d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z" />
+                        </svg>
+                    </button>
+                    <button class="text-custom-text hover:text-custom-primary"
+                        hx-get="/api/music/{{.ID}}/playlist-modal" hx-target="#modal-container">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                            viewBox="0 0 16 16">
+                            <path
+                                d="M6 13c0 1.105-1.12 2-2.5 2S1 14.105 1 13c0-1.104 1.12-2 2.5-2s2.5.896 2.5 2zm9-2c0 1.105-1.12 2-2.5 2s-2.5-.895-2.5-2 1.12-2 2.5-2 2.5.895 2.5 2z" />
+                            <path fill-rule="evenodd" d="M14 11V2h1v9h-1zM6 3v10H5V3h1z" />
+                            <path d="M5 2.905a1 1 0 0 1 .9-.995l8-.8a1 1 0 0 1 1.1.995V3L5 4V2.905z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+{{if eq (len .Music) 0}}
+<div class="text-center py-16">
+    <svg class="mx-auto h-16 w-16 text-custom-text" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+        stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+    </svg>
+    <h2 class="mt-4 text-lg font-medium text-custom-text">No music found</h2>
+    <p class="mt-2 text-custom-text">Lets Create!!</p>
+</div>
+{{end}}
+
+<div class="flex justify-between items-center mt-4" hx-boost="true">
+    <div class="text-lg text-custom-text">
+        Showing {{.Pagination.StartItem}} to {{.Pagination.EndItem}} of {{.Pagination.TotalItems}} tracks
+    </div>
+    <div class="flex space-x-2">
+        {{if .Pagination.HasPrev}}
+        <a href="/music?page={{.Pagination.PrevPage}}"
+            class="px-4 py-2 rounded-lg border border-custom-text bg-white text-custom-text "
+            hx-get="/api/v1/music?page={{.Pagination.PrevPage}}" hx-target="#music-list"
+            hx-indicator="#pagination-indicator" hx-include="#search-input">
+            Previous
+        </a>
+        {{else}}
+        <button class="px-4 py-2 rounded-lg border border-gray-300 bg-gray-300 text-custom-text cursor-not-allowed">
+            Previous
+        </button>
+        {{end}}
+
+        <div class="flex-shrink-0 flex items-center space-x-1">
+            {{range .Pagination.Pages}}
+            {{if eq . $.Pagination.CurrentPage}}
+            <span class="px-3 py-2 rounded-lg bg-custom-primary text-white">
+                {{.}}
+            </span>
+            {{else}}
+            <a href="/music?page={{.}}" class="px-3 py-2 rounded-lg hover:bg-gray-100 text-custom-text"
+                hx-get="/api/v1/music?page={{.}}" hx-target="#music-list" hx-indicator="#pagination-indicator"
+                hx-include="#search-input">
+                {{.}}
+            </a>
+            {{end}}
+            {{end}}
+        </div>
+
+        {{if .Pagination.HasNext}}
+        <a href="/music?page={{.Pagination.NextPage}}"
+            class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-custom-text"
+            hx-get="/api/v1/music?page={{.Pagination.NextPage}}" hx-target="#music-list"
+            hx-indicator="#pagination-indicator" hx-include="#search-input">
+            Next
+        </a>
+        {{else}}
+        <button class="px-4 py-2 rounded-lg border border-gray-300 bg-gray-300 text-custom-text cursor-not-allowed">
+            Next
+        </button>
+        {{end}}
+
+        <div id="pagination-indicator" class="htmx-indicator">
+            <svg class="animate-spin h-5 w-5 text-custom-primary" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+            </svg>
+        </div>
+    </div>
+</div>
+{{ end }}

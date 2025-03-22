@@ -1,0 +1,116 @@
+{{ template "top" . }}
+
+
+
+{{ template "navbar" . }}
+
+<div class="relative z-10 flex flex-col items-center justify-center h-screen">
+    <div id="playButtonContainer" class="block" hx-post="/generate-music" hx-trigger="click" hx-target="#musicContainer"
+        hx-swap="innerHTML" hx-indicator="#loadingContainer">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+            class="size-48 hover:cursor-pointer hover:scale-125 ease-in duration-100 text-white">
+            <defs>
+                <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+                    <feOffset dx="2" dy="2" result="offsetblur" />
+                    <feComponentTransfer>
+                        <feFuncA type="linear" slope="0.3" />
+                    </feComponentTransfer>
+                    <feMerge>
+                        <feMergeNode />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+            <path fill-rule="evenodd"
+                d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z"
+                clip-rule="evenodd" />
+        </svg>
+    </div>
+
+    <div id="musicContainer">
+        <div id="loadingContainer" class="hidden flex flex-col items-center justify-center">
+            <div class="relative">
+                <div class="animate-spin rounded-full h-32 w-32 border-b-4 border-white"></div>
+
+                <button
+                    class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white text-custom-primary rounded-full p-2 transition duration-200 ease-in-out"
+                    hx-post="/cancel-generation" hx-target="#musicContainer" hx-swap="outerHTML">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="mt-4 text-3xl flex">
+                <p class="inline">Creating your music</p>
+                <span class="inline-block w-6 overflow-hidden">
+                    <span class="animate-pulse">...</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex flex-col items-center justify-center text-custom-text text-4xl m-4 pt-6">
+        <form id="musicTypeForm" class="flex justify-center gap-4">
+            {{ range .MusicType }}
+                <label class="flex items-center m-2 hover:cursor-pointer">
+                    <input type="radio" name="musicType" value="{{ .Name }}" checked class="mr-2">
+                    {{ .Name }}
+                </label>
+            {{end}}
+        </form>
+        
+        <!-- AI Model Dropdown -->
+        <div class="m-4 pt-8">
+            <label for="aiModelDropdown">Model</label>
+            <select id="aiModelDropdown" class="bg-transparent hover:cursor-pointer">
+                {{ range .ModelType }}
+                    <option value="{{ .Name }}" class="text-2xl">{{ .Name }}</option>
+                {{end}}
+            </select>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const musicTypeForm = document.getElementById('musicTypeForm');
+        const aiModelDropdown = document.getElementById('aiModelDropdown');
+        const playButtonContainer = document.getElementById('playButtonContainer');
+
+        // Initialize current selections
+        let currentMusicType = document.querySelector('input[name="musicType"]:checked').value;
+        let currentAiModel = aiModelDropdown.value;
+
+        // Combine selections in the HTMX request attribute
+        function updateRequestValues() {
+            playButtonContainer.setAttribute('hx-vals', JSON.stringify({ 
+                musicType: currentMusicType, 
+                aiModel: currentAiModel 
+            }));
+        }
+
+        // Update on music type change
+        musicTypeForm.addEventListener('change', function (event) {
+            if (event.target.name === 'musicType') {
+                currentMusicType = event.target.value;
+                updateRequestValues();
+            }
+        });
+
+        // Update on AI model dropdown change
+        aiModelDropdown.addEventListener('change', function () {
+            currentAiModel = aiModelDropdown.value;
+            updateRequestValues();
+        });
+
+        // Set initial values
+        updateRequestValues();
+    });
+</script>
+
+
+{{ template "bottom" . }}

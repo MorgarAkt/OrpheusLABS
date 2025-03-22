@@ -1,0 +1,55 @@
+{{ template "top" . }}
+
+{{ template "navbar" . }}
+
+<div class="min-h-screen flex items-center justify-center relative z-10">
+    <div id="login-inner-box" class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full mx-4">
+        <h1 class="text-custom-primary text-center mb-8 text-4xl">
+            Welcome Back
+        </h1>
+
+        <form class="space-y-6" hx-post="/api/v1/login" hx-target="#login-inner-box">
+            <div>
+                <label for="email" class="block text-custom-text text-xl font-medium mb-2">
+                    Email Address
+                </label>
+                <input 
+                    type="email" 
+                    id="email"
+                    name="email"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-custom-primary font-sans"
+                    placeholder="your@email.com"
+                    required
+                >
+            </div>
+
+            <div>
+                <label for="password" class="block text-custom-text text-xl font-medium mb-2">
+                    Password
+                </label>
+                <input 
+                    type="password" 
+                    id="password"
+                    name="password"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-custom-primary font-sans"
+                    placeholder="••••••••"
+                    required
+                >
+            </div>
+
+            <button
+                type="submit"
+                class="w-full bg-custom-secondary text-custom-text py-2 rounded-lg hover:opacity-90 transition duration-300 font-bold"
+            >
+                Sign In
+            </button>
+        </form>
+
+        <p class="text-center text-custom-text text-sm mt-6 font-sans">
+            Don't have an account? 
+            <a href="/signup" class="text-custom-secondary hover:underline">Create one</a>
+        </p>
+    </div>
+</div>
+
+{{ template "bottom" . }}

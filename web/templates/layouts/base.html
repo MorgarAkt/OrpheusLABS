@@ -1,0 +1,47 @@
+{{ define "top" }}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ .title }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=New+Amsterdam&display=swap" rel="stylesheet">
+</head>
+
+<style>
+    body,
+    html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+    }
+
+    canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+    }
+</style>
+
+<body class="bg-custom-primary text-custom-text font-bold text-3xl w-screen h-screen font-newamsterdam flex items-center justify-center">    
+    <canvas id="waveCanvas"></canvas>
+
+{{ end }}
+
+{{ define "bottom" }}
+
+</body>
+
+<script src="/static/js/wave.js"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+<script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+</html>
+{{ end }}
