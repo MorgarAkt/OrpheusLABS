@@ -1,4 +1,4 @@
-# Aurify - AI-Driven Music Generation Suite
+# OrpheusLABS - AI-Driven Music Generation Suite
 
 An intelligent music composition platform combining neural networks with modern web technologies, featuring a Tailwind-powered responsive interface.
 
@@ -39,8 +39,8 @@ Python 3.11 | PyTorch 2.0  | LSTM Networks | TRANSFORMER Networks
 
 ### Installation
 ```bash
-git clone https://github.com/morgarakt/aurify.git
-cd aurify
+git clone https://github.com/morgarakt/OrpheusLABS.git
+cd OrpheusLABS
 go mod download
 
 cd web
@@ -51,7 +51,7 @@ npx tailwindcss -i ./static/css/input.css -o ./static/css/style.css --watch
 ### Configuration (`.env`)
 ```ini
 DB_HOST=localhost
-DB_NAME=aurify
+DB_NAME=orpheuslabs
 JWT_SECRET=your_secure_secret
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
 ```
@@ -113,6 +113,6 @@ Apache 2.0 License - See [LICENSE](LICENSE) for details.
 --- -->
 
 **Screenshot Preview**  
-![Aurify Interface](./.github/screencast.GIF)
+![OrheusLabs Interface](./.github/screencast.GIF)
 ```
 
