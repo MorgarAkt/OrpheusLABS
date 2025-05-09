@@ -1,16 +1,14 @@
-{{ template "top" . }}
-{{ template "navbar" . }}
+{{ define "auth/register.html" }}
+{{ template "layouts/base.html:top" . }}
+{{ template "partials/navbar.html" . }}
 
 <div class="min-h-screen flex items-center justify-center relative z-10">
     <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full mx-4">
-        <!-- Header -->
         <h1 class="text-custom-primary text-center mb-8 text-4xl">
             Create Account
         </h1>
 
-        <!-- Registration Form -->
         <form class="space-y-6" hx-post="/api/v1/register" hx-ext="json-enc" hx-target="#register-result">
-            <!-- Username Input -->
             <div>
                 <label for="username" class="block text-custom-text text-xl font-medium mb-2">
                     Username
@@ -20,7 +18,6 @@
                     placeholder="johndoe" required>
             </div>
 
-            <!-- Email Input -->
             <div>
                 <label for="email" class="block text-custom-text text-xl font-medium mb-2">
                     Email Address
@@ -30,7 +27,6 @@
                     placeholder="your@email.com" required>
             </div>
 
-            <!-- Password Input -->
             <div>
                 <label for="password" class="block text-custom-text text-xl font-medium mb-2">
                     Password
@@ -40,27 +36,22 @@
                     placeholder="••••••••" required>
             </div>
 
-            <!-- Confirm Password Input -->
             <div>
                 <label for="confirm_password" class="block text-custom-text text-xl font-medium mb-2">
                     Confirm Password
                 </label>
-                <input type="password" id="confirm_password"
-                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-custom-primary font-sans"
+                <input type="password" id="confirm_password" name="confirm_password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-custom-primary font-sans"
                     placeholder="••••••••" required>
             </div>
 
-            <!-- Submit Button -->
             <button type="submit"
                 class="w-full bg-custom-secondary text-custom-text py-2 rounded-lg hover:opacity-90 transition duration-300 font-bold">
                 Create Account
             </button>
 
-            <!-- Result Container -->
             <div id="register-result" class="text-center text-xl"></div>
         </form>
 
-        <!-- Login Link -->
         <p class="text-center text-custom-text text-xl mt-6 font-sans">
             Already have an account?
             <a href="/login" class="text-custom-secondary hover:underline">Sign in</a>
@@ -68,4 +59,5 @@
     </div>
 </div>
 
-{{ template "bottom" . }}
+{{ template "layouts/base.html:bottom" . }}
+{{ end}}

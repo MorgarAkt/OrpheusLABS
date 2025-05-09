@@ -1,0 +1,25 @@
+{{ define "error/notfound.html" }}
+
+{{ template "layouts/base.html:top" . }}
+
+{{ template "partials/navbar.html" . }}
+
+<div class="min-h-screen flex flex-col items-center justify-center relative z-10 text-custom-text px-4 text-center">
+    <div class="bg-white p-8 md:p-12 rounded-lg shadow-xl max-w-lg w-full mx-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-custom-primary mx-auto mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h1 class="text-3xl md:text-4xl font-bold text-custom-primary mb-4">
+            Sayfa Bulunamadı (404)
+        </h1>
+        <p class="text-lg md:text-xl mb-6">
+            Aradığınız sayfa mevcut değil, taşınmış veya silinmiş olabilir.
+        </p>
+        <a href="/" class="inline-block text-custom-primary font-semibold py-2 px-6 rounded-lg hover:underline transition duration-300">
+            Ana Sayfaya Dön
+        </a>
+    </div>
+</div>
+
+{{ template "layouts/base.html:bottom" . }}
+{{ end }}

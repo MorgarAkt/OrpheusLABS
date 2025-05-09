@@ -1,0 +1,37 @@
+{{ define "music/detail.html" }}
+{{ template "layouts/base.html:top" . }}
+{{ template "partials/navbar.html" . }}
+
+<div class="container max-h-[calc(100vh-7rem)] px-4 py-8 pt-28 z-10 overflow-y-auto text-2xl mx-auto flex justify-center">
+    <div class="w-full max-w-4xl"> 
+
+        {{ template "partials/music_player.html" .Music }}
+
+        {{/* Opsiyonel: Müzikle ilgili ek detaylar buraya eklenebilir */}}
+        <div class="mt-8 p-6 bg-white rounded-lg shadow-md text-base font-normal font-sans text-custom-text">
+            <h3 class="text-xl font-semibold mb-4">Track Details</h3>
+            <div class="grid grid-cols-2 gap-4">
+                <p><strong>Genre:</strong> {{ .Music.MusicType }}</p>
+                <p><strong>Model:</strong> {{ .Music.ModelType }}</p>
+                <p><strong>Creator:</strong>
+                    {{ if .Music.Creator }}
+                         {{/* TODO: Creator profiline link eklenebilir */}}
+                        {{ .Music.Creator }}
+                    {{ else }}
+                        Anonymous
+                    {{ end }}
+                </p>
+                <p><strong>Year:</strong> {{ .Music.CreationYear }}</p>
+                <p><strong>Visibility:</strong> {{ if .Music.IsPublic }}Public{{ else }}Private{{ end }}</p>
+                {{/* Diğer detaylar (Likes, Listens vb.) eklenebilir */}}
+                {{/* <p><strong>Likes:</strong> {{ .Music.Likes }}</p> */}}
+                {{/* <p><strong>Listens:</strong> {{ .Music.Listens }}</p> */}}
+            </div>
+             {{/* TODO: Yorumlar, Paylaşım Butonları vb. buraya eklenebilir */}}
+        </div>
+
+    </div>
+</div>
+
+{{ template "layouts/base.html:bottom" . }}
+{{ end }}

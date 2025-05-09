@@ -1,0 +1,44 @@
+{{ define "error/unauthorized.html" }}
+{{ template "layouts/base.html:top" . }}
+{{ template "partials/navbar.html" . }}
+
+<div class="min-h-screen flex flex-col items-center justify-center relative z-10 text-custom-text px-4 text-center">
+    <div class="bg-white p-8 md:p-12 rounded-lg shadow-xl max-w-lg w-full mx-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-red-500 mx-auto mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h1 class="text-3xl md:text-4xl font-bold text-custom-primary mb-4">
+            Erişim Yetkiniz Yok
+        </h1>
+        <p class="text-lg md:text-xl mb-3">
+            Bu sayfayı görüntülemek için gerekli yetkilere sahip değilsiniz.
+        </p>
+
+        {{ if .IsLoginRequired }}
+        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6" role="alert">
+            <p class="font-bold">Giriş Gerekli</p>
+            <p>Bu içeriğe erişmek için lütfen  
+                <br>
+                <a href="/login?redirect={{ .RedirectURL }}" class="text-custom-primary hover:underline font-semibold">giriş yapın</a>.</p>
+        </div>
+        {{ end }}
+
+        {{ if .IsAdminRequired }}
+        <div class="bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 mb-6" role="alert">
+            <p class="font-bold">Admin Yetkisi Gerekli</p>
+            <p>Bu sayfa yalnızca yöneticiler tarafından görüntülenebilir. Hesabınız yönetici yetkisine sahip değil.</p>
+        </div>
+        {{ end }}
+
+        {{/* Düzeltilmiş Satır: 'and' ile birleştirildi */}}
+        {{ if and (not .IsLoginRequired) (not .IsAdminRequired) }}
+         <p class="text-md text-gray-600 mb-6">
+            Belirli bir yetki seviyesi gerekmektedir. Lütfen sistem yöneticinizle iletişime geçin.
+        </p>
+        {{ end }}
+
+    </div>
+</div>
+
+{{ template "layouts/base.html:bottom" . }}
+{{ end }}

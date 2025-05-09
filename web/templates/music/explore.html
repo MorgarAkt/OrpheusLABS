@@ -1,0 +1,180 @@
+{{ define "music/explore.html" }} 
+{{ template "layouts/base.html:top" . }}
+{{ template "partials/navbar.html" . }}
+
+{{/* HXGetURL data attribute'u API endpoint'ini içerir, örn: /api/v1/explore-music-data */}}
+<div class="container max-h-[calc(100vh-7rem)] px-4 py-8 pt-28 z-10 overflow-y-auto text-2xl mx-auto" data-hx-get-url="{{.HXGetURL }}">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-4xl font-bold text-custom-text">Explore Public Music</h1>
+        <div class="flex space-x-4 items-center">
+            <div class="relative flex items-center">
+                <div class="absolute left-3 text-custom-text pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" /></svg>
+                </div>
+                <input type="text" id="search-input" placeholder="Search public music..." name="q" value="{{ .Pagination.SearchQuery }}"
+                    class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-custom-primary text-sm font-sans font-normal"
+                    hx-get="{{ .HXGetURL }}" {{/* API endpoint (örn: /api/v1/explore-music-data) */}}
+                    hx-trigger="keyup changed delay:250ms, search"
+                    hx-target="#music-list-container"
+                    hx-indicator="#search-indicator"
+                    hx-include="#genre-select, #sort-select"
+                    hx-swap="innerHTML"> 
+                <div id="search-indicator" class="htmx-indicator absolute right-3 top-1/2 transform -translate-y-1/2">
+                   <svg class="animate-spin h-5 w-5 text-custom-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex flex-wrap gap-4 mb-6 items-center">
+        <select id="genre-select" name="musictype"
+            class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-custom-primary text-sm font-sans font-normal"
+            hx-get="{{ .HXGetURL }}"
+            hx-trigger="change"
+            hx-target="#music-list-container"
+            hx-indicator="#filters-indicator"
+            hx-include="#search-input, #sort-select"
+            hx-swap="innerHTML"> 
+            <option value="">All Genres</option>
+            {{ range .MusicType }}
+            <option value="{{ .Name }}" {{ if eq .Name $.Pagination.MusicTypeFilter }}selected{{ end }}>{{ .Name }}</option>
+            {{ end }}
+        </select>
+        <select id="sort-select" name="sort"
+            class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-custom-primary text-sm font-sans font-normal"
+             hx-get="{{ .HXGetURL }}"
+            hx-trigger="change"
+            hx-target="#music-list-container"
+            hx-indicator="#filters-indicator"
+            hx-include="#search-input, #genre-select"
+            hx-swap="innerHTML"> 
+            <option value="">Sort By</option>
+            <option value="added_desc" {{ if eq $.Pagination.SortBy "added_desc" }}selected{{ end }}>Recently Added</option>
+            <option value="title_asc" {{ if eq $.Pagination.SortBy "title_asc" }}selected{{ end }}>Title (A-Z)</option>
+            <option value="title_desc" {{ if eq $.Pagination.SortBy "title_desc" }}selected{{ end }}>Title (Z-A)</option>
+            {{/* Diğer sıralama seçenekleri eklenebilir */}}
+        </select>
+        <div id="filters-indicator" class="htmx-indicator ml-2">
+            <svg class="animate-spin h-5 w-5 text-custom-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        </div>
+    </div>
+
+    {{/* music-list-container başlangıçta sunucu tarafından render edilen partial'ı içerir */}}
+    <div id="music-list-container" class="mb-8" 
+         data-initial-per-page="{{.InitialPerPage}}"
+         data-current-sort="{{.Pagination.SortBy}}" 
+         data-current-query="{{.Pagination.SearchQuery}}" 
+         data-current-musictype="{{.Pagination.MusicTypeFilter}}">
+         {{/* Ana context (.) Music ve Pagination verilerini içermelidir */}}
+         {{ template "partials/musics-pagination.html" . }}
+    </div>
+</div>
+<div id="modal-container"></div> 
+
+<script>
+    (function() { // IIFE
+        const currentViewPath = window.location.pathname; // Dinamik olarak /explore alınır
+        const musicListContainerContext = document.getElementById('music-list-container');
+        const mainPageContainerContext = musicListContainerContext?.closest('[data-hx-get-url]');
+        // API endpoint'ini data attribute'dan al veya path'e göre belirle
+        const baseApiUrlContext = mainPageContainerContext?.dataset.hxGetUrl || 
+                                 (currentViewPath === "/explore" ? "/api/v1/explore-music-data" : 
+                                 (currentViewPath === "/library" ? "/api/v1/music" : "")); // Fallback
+
+        if (!baseApiUrlContext) {
+            console.warn(`Explore (${currentViewPath}): Could not determine baseApiUrlContext.`);
+        }
+
+        function getResponsivePerPage() {
+            const screenWidth = window.innerWidth;
+            // Bu değerler projenizin grid yapısına göre ayarlanmalı
+            if (screenWidth >= 1280) { return 4; } // xl
+            if (screenWidth >= 1024) { return 3; } // lg
+            const initialPerPage = parseInt(musicListContainerContext?.dataset.initialPerPage, 10);
+            return (initialPerPage && initialPerPage > 0 && initialPerPage < 3) ? initialPerPage : 2; // Varsayılan
+        }
+
+        function triggerLoadWithResponsivePerPage() {
+            const musicListContainer = document.getElementById('music-list-container');
+            if (!musicListContainer || !baseApiUrlContext) return;
+
+            const perPage = getResponsivePerPage();
+            const currentParams = new URLSearchParams(window.location.search);
+            
+            const apiParams = new URLSearchParams();
+            apiParams.set('page', currentParams.get('page') || '1');
+            apiParams.set('per_page', perPage.toString());
+            if (currentParams.get('q')) apiParams.set('q', currentParams.get('q'));
+            if (currentParams.get('musictype')) apiParams.set('musictype', currentParams.get('musictype'));
+            if (currentParams.get('sort')) apiParams.set('sort', currentParams.get('sort'));
+            
+            const requestUrl = `${baseApiUrlContext}?${apiParams.toString()}`;
+            
+            console.log(`${currentViewPath}: Initial/Resize - Triggering HTMX GET: ${requestUrl}`);
+            htmx.ajax('GET', requestUrl, {
+                target: '#music-list-container',
+                swap: 'innerHTML'
+                // Sunucu HX-Push-Url göndereceği için burada pushUrl belirtmiyoruz.
+            }).catch(err => {
+                console.error(`${currentViewPath}: Error in initial/resize content load:`, err);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const initialPerPageFromServer = parseInt(musicListContainerContext?.dataset.initialPerPage, 10);
+            const responsivePerPage = getResponsivePerPage();
+            if (initialPerPageFromServer !== responsivePerPage && musicListContainerContext) { // musicListContainerContext var mı diye kontrol et
+                console.log(`${currentViewPath}: DOMContentLoaded - Initial per_page (${initialPerPageFromServer}) differs from responsive (${responsivePerPage}). Triggering update.`);
+                triggerLoadWithResponsivePerPage();
+            } else {
+                 console.log(`${currentViewPath}: DOMContentLoaded - Initial per_page matches responsive or container not found. No update on load.`);
+            }
+        });
+
+        let resizeTimeoutIdExplore;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeoutIdExplore);
+            resizeTimeoutIdExplore = setTimeout(function() {
+                triggerLoadWithResponsivePerPage();
+            }, 300);
+        });
+
+        document.body.addEventListener('htmx:configRequest', function(event) {
+            const detail = event.detail;
+            const requestingElement = detail.elt;
+            let isMusicListRelatedRequest = false;
+            
+            const eventApiUrl = requestingElement.closest('[data-hx-get-url]')?.dataset.hxGetUrl || baseApiUrlContext;
+
+            if (requestingElement) {
+                if (requestingElement.closest('#pagination-controls') ||
+                    requestingElement.id === 'search-input' || 
+                    requestingElement.id === 'genre-select' || 
+                    requestingElement.id === 'sort-select') {
+                    isMusicListRelatedRequest = true;
+                } else if (detail.path && eventApiUrl && requestingElement.closest('#music-list-container') && detail.path.startsWith(eventApiUrl)) {
+                    isMusicListRelatedRequest = true;
+                }
+            }
+            
+            if (isMusicListRelatedRequest) {
+                const responsivePerPage = getResponsivePerPage();
+                if (typeof detail.parameters !== 'object' || detail.parameters === null) {
+                    detail.parameters = {};
+                }
+                detail.parameters['per_page'] = responsivePerPage.toString();
+
+                if (!detail.parameters['page'] && 
+                    (requestingElement.id === 'search-input' || 
+                     requestingElement.id === 'genre-select' || 
+                     requestingElement.id === 'sort-select')) {
+                    detail.parameters['page'] = '1';
+                }
+                console.log(`${currentViewPath} - htmx:configRequest - Modifying API request. Path: ${detail.path}, Params: ${JSON.stringify(detail.parameters)}`);
+            }
+        });
+    })();
+</script>
+
+{{ template "layouts/base.html:bottom" . }}
+{{ end }}

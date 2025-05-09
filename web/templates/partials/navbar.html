@@ -1,19 +1,36 @@
-{{ define "navbar" }}
+{{ define "partials/navbar.html" }}
 
 <nav
     class="w-[calc(100%-2rem)] z-50 rounded-lg m-4 h-16 shadow-sm top-0 left-0 fixed flex items-center drop-shadow-xl justify-between bg-custom-secondary px-8">
-    <div class="flex space-x-4">
-        <a href="/" class="hover:underline">Create!</a>
-        <a href="/library" class="hover:underline">Library</a>
-        <a href="/explore" class="hover:underline">Explore</a>
+    <div class="flex space-x-4 md:space-x-6 text-2xl">
+        <a href="/" class="hover:underline hover:opacity-80 transition-opacity">Create!</a>
+        <a href="/library" class="hover:underline hover:opacity-80 transition-opacity">Library</a>
+        <a href="/explore" class="hover:underline hover:opacity-80 transition-opacity">Explore</a>
     </div>
-    <div class="flex space-x-4">
+    <div class="flex space-x-4 md:space-x-6 text-2xl items-center">
         {{ if .auth }}
-            <a href="/user" class="hover:underline">Welcome {{ .username }}!!!</a>
-            <a hx-post="/api/v1/logout" hx-on::after-request="window.location.href = '/'" hx-swap="none" class="hover:underline hover:cursor-pointer">Logout</a>
+
+        <span class="sm:inline">Welcome, {{ .username }}!</span>
+        {{/* Logout Butonu Güncellemesi */}}
+        <button
+            onclick="showLogoutConfirmModal(); return false;" {{/* Modal açar */}}
+            class="hover:underline hover:opacity-80 transition-opacity hover:cursor-pointer flex items-center"
+            id="logout-button" {{/* JS ile hedeflemek için ID eklendi (opsiyonel) */}}>
+            Logout
+             {{/* Indicator modal içinde gösterilebilir veya buton yanında kalabilir */}}
+            <span id="logout-indicator" class="htmx-indicator ml-2">
+                <svg class="animate-spin h-4 w-4 text-custom-primary" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+            </span>
+        </button>
         {{else}}
-            <a href="/login" class="hover:underline">Login</a>
-            <a href="/register" class="hover:underline">Register</a>
+        <a href="/login" class="hover:underline hover:opacity-80 transition-opacity">Login</a>
+        <a href="/register" class="hover:underline hover:opacity-80 transition-opacity">Register</a>
         {{end}}
 
     </div>

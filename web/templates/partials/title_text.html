@@ -1,0 +1,10 @@
+{{ define "partials/title-text.html" }}
+<h2 id="title-text-{{.MusicID}}"
+    class="text-2xl md:text-3xl font-bold truncate hover:text-custom-primary hover:cursor-pointer"
+    title="{{.CurrentTitle}}"
+    hx-get="/partials/edit-title-form?musicID={{.MusicID}}&currentTitle={{ urlquery .CurrentTitle }}"
+    hx-target="#music-title-display-{{.MusicID}}"
+    hx-swap="innerHTML">
+    {{.CurrentTitle}}
+</h2>
+{{ end }}

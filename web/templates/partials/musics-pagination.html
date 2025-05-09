@@ -1,115 +1,232 @@
-{{ define "musics-pagination"}}
+{{ define "partials/musics-pagination.html"}}
 
-<div class="w-full grid grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="w-full grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
     {{range .Music}}
-    <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-        <img src="{{.CoverArt}}" alt="{{.Title}} by {{.Artist}}" class="w-full h-48 object-cover">
-        <div class="p-4">
-            <h3 class="font-bold text-lg text-custom-text truncate">{{.Title}}</h3>
-            <p class="text-custom-text truncate">{{.Artist}}</p>
-            <p class="text-custom-text text-sm">{{.Genre}} • {{.Year}}</p>
-            <div class="flex justify-between items-center mt-4">
-                <button class="text-custom-primary hover:text-opacity-80" hx-post="/api/music/{{.ID}}/play"
-                    hx-swap="none">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
-                        viewBox="0 0 16 16">
-                        <path
-                            d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z" />
-                    </svg>
+     <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col">
+         <div class="aspect-square w-full overflow-hidden p-4 rounded-lg"> 
+             <img src="{{if .CoverArtPath}}{{.CoverArtPath}}{{else}}/static/images/placeholder_cover.png{{end}}"
+                  alt="{{if .Title}}{{.Title}}{{else}}Untitled{{end}} cover art"
+                  class="w-full h-full object-cover"
+                  onerror="this.onerror=null; this.src='/static/images/placeholder_cover.png';">
+         </div>
+        <div class="p-4 flex-grow">
+            <h3 class="font-bold text-lg text-custom-text truncate" title="{{if .Title}}{{.Title}}{{else}}Untitled{{end}}">{{if .Title}}{{.Title}}{{else}}Untitled{{end}}</h3>
+            <p class="text-sm text-gray-600 truncate" title="By {{if .Creator}}{{.Creator}}{{else}}Unknown Artist{{end}}">By {{if .Creator}}{{.Creator}}{{else}}Unknown Artist{{end}}</p>
+            <p class="text-xs text-gray-500">{{if .MusicType}}{{.MusicType}}{{else}}N/A{{end}} &bull; {{.CreationYear}}</p>
+        </div>
+        <div class="p-4 border-t border-gray-200 flex justify-between items-center">
+            {{ if .Mp3FilePath }}
+             <button class="text-custom-primary hover:text-opacity-80 focus:outline-none p-1 rounded-full hover:bg-gray-100"
+                     onclick="playAudio('{{.Mp3FilePath}}', this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16" class="play-icon block">
+                     <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+                 </svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16" class="pause-icon hidden">
+                      <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+                 </svg>
+             </button>
+            {{ else }}
+             <span class="text-gray-400 p-1" title="Audio not available">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814l-3.5-2.5z"/><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm15 0a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/></svg>
+             </span>
+            {{ end }}
+            <div class="flex space-x-3 items-center">
+                <button class="text-custom-text hover:text-custom-primary disabled:opacity-50 disabled:cursor-not-allowed p-1 rounded-full" disabled title="Favorite (coming soon)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="{{if .IsFavorite}}text-custom-primary{{else}}text-gray-400{{end}}" viewBox="0 0 16 16"> <path d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/></svg>
                 </button>
-                <div class="flex space-x-3">
-                    <button class="text-custom-text hover:text-custom-primary" hx-post="/api/music/{{.ID}}/favorite"
-                        hx-swap="outerHTML">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                            class="{{if .IsFavorite}}text-custom-primary{{end}}" viewBox="0 0 16 16">
-                            <path d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z" />
-                        </svg>
-                    </button>
-                    <button class="text-custom-text hover:text-custom-primary"
-                        hx-get="/api/music/{{.ID}}/playlist-modal" hx-target="#modal-container">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                            viewBox="0 0 16 16">
-                            <path
-                                d="M6 13c0 1.105-1.12 2-2.5 2S1 14.105 1 13c0-1.104 1.12-2 2.5-2s2.5.896 2.5 2zm9-2c0 1.105-1.12 2-2.5 2s-2.5-.895-2.5-2 1.12-2 2.5-2 2.5.895 2.5 2z" />
-                            <path fill-rule="evenodd" d="M14 11V2h1v9h-1zM6 3v10H5V3h1z" />
-                            <path d="M5 2.905a1 1 0 0 1 .9-.995l8-.8a1 1 0 0 1 1.1.995V3L5 4V2.905z" />
-                        </svg>
-                    </button>
-                </div>
+                <button class="text-custom-text hover:text-custom-primary disabled:opacity-50 disabled:cursor-not-allowed p-1 rounded-full" disabled title="Add to playlist (coming soon)">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-gray-400" viewBox="0 0 16 16"><path d="M6 13c0 1.105-1.12 2-2.5 2S1 14.105 1 13c0-1.104 1.12-2 2.5-2s2.5.896 2.5 2zm9-2c0 1.105-1.12 2-2.5 2s-2.5-.895-2.5-2 1.12-2 2.5-2 2.5.895 2.5 2z"/><path fill-rule="evenodd" d="M14 11V2h1v9h-1zM6 3v10H5V3h1z"/><path d="M5 2.905a1 1 0 0 1 .9-.995l8-.8a1 1 0 0 1 1.1.995V3L5 4V2.905z"/></svg>
+                </button>
+                {{ if or .MidiFilePath .Mp3FilePath }}
+                 <div class="relative inline-block text-left group">
+                     <button class="text-custom-text hover:text-custom-primary focus:outline-none p-1 rounded-full">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                           <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                           <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                         </svg>
+                     </button>
+                      <div class="absolute right-0 bottom-full mb-2 w-32 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 invisible group-hover:visible z-10">
+                         <div class="py-1 text-sm font-sans font-normal" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                             {{ if .Mp3FilePath }}
+                             <a href="{{.Mp3FilePath}}" download="{{if .Title}}{{.Title}}{{else}}download{{end}}.mp3" class="block px-4 py-2 text-gray-700 hover:bg-gray-100" role="menuitem">Download MP3</a>
+                             {{ end }}
+                              {{ if .MidiFilePath }}
+                             <a href="{{.MidiFilePath}}" download="{{if .Title}}{{.Title}}{{else}}download{{end}}.mid" class="block px-4 py-2 text-gray-700 hover:bg-gray-100" role="menuitem">Download MIDI</a>
+                             {{ end }}
+                         </div>
+                     </div>
+                 </div>
+                 {{ end }}
             </div>
         </div>
     </div>
+    {{else}}
+    {{/* Müzik yoksa bu kısım görünmeyecek, aşağıdaki if kontrol edecek */}}
     {{end}}
 </div>
 
 {{if eq (len .Music) 0}}
-<div class="text-center py-16">
-    <svg class="mx-auto h-16 w-16 text-custom-text" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-        stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+<div class="text-center py-16 col-span-full">
+    <svg class="mx-auto h-16 w-16 text-custom-text opacity-50" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
     </svg>
-    <h2 class="mt-4 text-lg font-medium text-custom-text">No music found</h2>
-    <p class="mt-2 text-custom-text">Lets Create!!</p>
+    <h2 class="mt-4 text-lg font-medium text-custom-text">No Music Found</h2>
+    <p class="mt-2 text-sm text-custom-text opacity-70">
+        {{ if .Pagination.SearchQuery }}
+            No results matching "{{ .Pagination.SearchQuery }}". Try a different search.
+        {{ else if .Pagination.MusicTypeFilter }}
+             No music found for genre "{{ .Pagination.MusicTypeFilter }}". Try 'All Genres'.
+        {{ else if eq .Pagination.BaseLink "/library" }} {{/* BaseLink'e göre mesaj */}}
+             Your library is empty. <a href="/" class="text-custom-primary hover:underline">Create some music!</a>
+        {{ else }}
+             No public music found matching the criteria.
+        {{ end }}
+    </p>
 </div>
 {{end}}
 
-<div class="flex justify-between items-center mt-4" hx-boost="true">
-    <div class="text-lg text-custom-text">
+{{ if gt .Pagination.TotalPages 1 }}
+ <div id="pagination-controls" class="flex flex-col sm:flex-row justify-between items-center mt-8 col-span-full border-t pt-4 text-sm font-sans font-normal">
+    <div class="text-custom-text opacity-80 mb-2 sm:mb-0">
         Showing {{.Pagination.StartItem}} to {{.Pagination.EndItem}} of {{.Pagination.TotalItems}} tracks
     </div>
-    <div class="flex space-x-2">
+    <div class="flex items-center space-x-1">
+        {{/* API URL'ini belirle (library veya explore için) */}}
+        {{ $api_base_url := "" }}
+        {{ if eq .Pagination.BaseLink "/library" }}
+            {{ $api_base_url = "/api/v1/music" }}
+        {{ else if eq .Pagination.BaseLink "/explore" }}
+            {{ $api_base_url = "/api/v1/explore-music-data" }}
+        {{ end }}
+
         {{if .Pagination.HasPrev}}
-        <a href="/music?page={{.Pagination.PrevPage}}"
-            class="px-4 py-2 rounded-lg border border-custom-text bg-white text-custom-text "
-            hx-get="/api/v1/music?page={{.Pagination.PrevPage}}" hx-target="#music-list"
-            hx-indicator="#pagination-indicator" hx-include="#search-input">
-            Previous
+        <a href="#"
+           class="px-3 py-1 rounded border border-gray-300 bg-white text-custom-text hover:bg-gray-50 transition-colors duration-150"
+           hx-get="{{$api_base_url}}?page={{.Pagination.PrevPage}}&{{.Pagination.LinkQuery}}"
+           hx-target="#music-list-container"
+           hx-indicator="#pagination-indicator"
+           hx-swap="innerHTML">
+            &laquo; Prev
         </a>
         {{else}}
-        <button class="px-4 py-2 rounded-lg border border-gray-300 bg-gray-300 text-custom-text cursor-not-allowed">
-            Previous
-        </button>
+        <span class="px-3 py-1 rounded border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed">&laquo; Prev</span>
         {{end}}
 
-        <div class="flex-shrink-0 flex items-center space-x-1">
+        <div class="flex-shrink-0 flex items-center space-x-1 mx-2">
             {{range .Pagination.Pages}}
-            {{if eq . $.Pagination.CurrentPage}}
-            <span class="px-3 py-2 rounded-lg bg-custom-primary text-white">
-                {{.}}
-            </span>
-            {{else}}
-            <a href="/music?page={{.}}" class="px-3 py-2 rounded-lg hover:bg-gray-100 text-custom-text"
-                hx-get="/api/v1/music?page={{.}}" hx-target="#music-list" hx-indicator="#pagination-indicator"
-                hx-include="#search-input">
-                {{.}}
-            </a>
-            {{end}}
+                {{if eq . $.Pagination.CurrentPage}}
+                <span class="px-3 py-1 rounded bg-custom-primary text-sm text-white font-semibold cursor-default">{{.}}</span>
+                {{else}}
+                 <a href="#"
+                    class="px-3 py-1 rounded hover:bg-gray-100 text-custom-text transition-colors duration-150"
+                    hx-get="{{$api_base_url}}?page={{.}}&{{$.Pagination.LinkQuery}}"
+                    hx-target="#music-list-container"
+                    hx-indicator="#pagination-indicator"
+                    hx-swap="innerHTML">
+                    {{.}}
+                </a>
+                {{end}}
             {{end}}
         </div>
 
         {{if .Pagination.HasNext}}
-        <a href="/music?page={{.Pagination.NextPage}}"
-            class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-custom-text"
-            hx-get="/api/v1/music?page={{.Pagination.NextPage}}" hx-target="#music-list"
-            hx-indicator="#pagination-indicator" hx-include="#search-input">
-            Next
+        <a href="#"
+           class="px-3 py-1 rounded border border-gray-300 bg-white text-custom-text hover:bg-gray-50 transition-colors duration-150"
+           hx-get="{{$api_base_url}}?page={{.Pagination.NextPage}}&{{.Pagination.LinkQuery}}"
+           hx-target="#music-list-container"
+           hx-indicator="#pagination-indicator"
+           hx-swap="innerHTML">
+            Next &raquo;
         </a>
         {{else}}
-        <button class="px-4 py-2 rounded-lg border border-gray-300 bg-gray-300 text-custom-text cursor-not-allowed">
-            Next
-        </button>
+        <span class="px-3 py-1 rounded border border-gray-200 bg-gray-100 text-sm text-gray-400 cursor-not-allowed">Next &raquo;</span>
         {{end}}
 
-        <div id="pagination-indicator" class="htmx-indicator">
-            <svg class="animate-spin h-5 w-5 text-custom-primary" xmlns="http://www.w3.org/2000/svg" fill="none"
-                viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                </path>
-            </svg>
-        </div>
+        <div id="pagination-indicator" class="htmx-indicator ml-2">
+            <svg class="animate-spin h-5 w-5 text-custom-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+             </svg>
+         </div>
     </div>
 </div>
+{{end}}
+
+{{/* Bu partial içindeki JavaScript (playAudio vb.) aynı kalabilir */}}
+<script>
+(function() { // IIFE
+    let currentAudio = null;
+    let currentPlayButton = null;
+
+    window.playAudio = function(audioSrc, buttonElement) {
+        const playIcon = buttonElement.querySelector('.play-icon');
+        const pauseIcon = buttonElement.querySelector('.pause-icon');
+
+        if (currentAudio && !currentAudio.paused && currentAudio.src.endsWith(audioSrc)) {
+            currentAudio.pause();
+            if (playIcon) { playIcon.classList.remove('hidden'); playIcon.classList.add('block'); }
+            if (pauseIcon) { pauseIcon.classList.add('hidden'); pauseIcon.classList.remove('block'); }
+            currentPlayButton = null;
+        } else {
+            stopCurrentAudio();
+
+            currentAudio = new Audio(audioSrc);
+            currentAudio.play().then(() => {
+                if (playIcon) { playIcon.classList.add('hidden'); playIcon.classList.remove('block'); }
+                if (pauseIcon) { pauseIcon.classList.remove('hidden'); pauseIcon.classList.add('block'); }
+                currentPlayButton = buttonElement;
+
+                currentAudio.onended = () => { resetCurrentButtonIcons(); currentAudio = null; currentPlayButton = null; };
+                currentAudio.onerror = (e) => { console.error("Error playing audio:", e); resetCurrentButtonIcons(); currentAudio = null; currentPlayButton = null; };
+            }).catch(error => {
+                console.error("Error initiating audio playback:", error);
+                resetCurrentButtonIcons(); currentAudio = null; currentPlayButton = null;
+            });
+        }
+    }
+
+    function stopCurrentAudio() {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.onended = null;
+            currentAudio.onerror = null;
+            resetCurrentButtonIcons();
+            currentAudio = null;
+            currentPlayButton = null;
+        }
+    }
+
+    function resetCurrentButtonIcons() {
+        if (currentPlayButton) {
+            const playIcon = currentPlayButton.querySelector('.play-icon');
+            const pauseIcon = currentPlayButton.querySelector('.pause-icon');
+            if(playIcon) { playIcon.classList.remove('hidden'); playIcon.classList.add('block'); }
+            if(pauseIcon) { pauseIcon.classList.add('hidden'); pauseIcon.classList.remove('block'); }
+        }
+    }
+    
+    // HTMX ile içerik değişimi öncesi sesi durdurma (genel bir dinleyici)
+    document.body.addEventListener('htmx:beforeSwap', function(evt) {
+       // Eğer swap hedefi music-list-container ise ve ses çalıyorsa durdur.
+       // Bu, sayfalama veya filtreleme sırasında çalan sesi durdurur.
+       if (currentAudio && evt.detail.target.id === 'music-list-container') {
+            const musicListAPIPaths = ['/api/v1/music', '/api/v1/explore-music-data'];
+            let requestUrlPath = '';
+            try {
+                requestUrlPath = new URL(evt.detail.xhr.responseURL, window.location.origin).pathname;
+            } catch (e) {
+                // responseURL geçerli bir URL değilse (örn. test ortamı, boş string vb.)
+                // Hata vermemesi için loglayıp geçebiliriz.
+                console.warn("Could not parse responseURL in htmx:beforeSwap:", evt.detail.xhr.responseURL);
+            }
+
+            if (requestUrlPath && musicListAPIPaths.includes(requestUrlPath)) {
+                console.log("Stopping audio due to HTMX swap of #music-list-container (body listener for relevant paths).");
+                stopCurrentAudio();
+            }
+       }
+    });
+})();
+</script>
+
 {{ end }}

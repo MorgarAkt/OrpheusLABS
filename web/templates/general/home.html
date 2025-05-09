@@ -1,116 +1,183 @@
-{{ template "top" . }}
+{{ define "general/home.html" }} 
 
+{{ template "layouts/base.html:top" . }}
+{{ template "partials/navbar.html" . }}
 
-
-{{ template "navbar" . }}
 
 <div class="relative z-10 flex flex-col items-center justify-center h-screen">
-    <div id="playButtonContainer" class="block" hx-post="/generate-music" hx-trigger="click" hx-target="#musicContainer"
-        hx-swap="innerHTML" hx-indicator="#loadingContainer">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
-            class="size-48 hover:cursor-pointer hover:scale-125 ease-in duration-100 text-white">
-            <defs>
-                <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
-                    <feOffset dx="2" dy="2" result="offsetblur" />
-                    <feComponentTransfer>
-                        <feFuncA type="linear" slope="0.3" />
-                    </feComponentTransfer>
-                    <feMerge>
-                        <feMergeNode />
-                        <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                </filter>
-            </defs>
-            <path fill-rule="evenodd"
-                d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z"
-                clip-rule="evenodd" />
-        </svg>
-    </div>
 
-    <div id="musicContainer">
-        <div id="loadingContainer" class="hidden flex flex-col items-center justify-center">
-            <div class="relative">
-                <div class="animate-spin rounded-full h-32 w-32 border-b-4 border-white"></div>
-
-                <button
-                    class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white text-custom-primary rounded-full p-2 transition duration-200 ease-in-out"
-                    hx-post="/cancel-generation" hx-target="#musicContainer" hx-swap="outerHTML">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <div class="mt-4 text-3xl flex">
-                <p class="inline">Creating your music</p>
-                <span class="inline-block w-6 overflow-hidden">
-                    <span class="animate-pulse">...</span>
-                </span>
-            </div>
-        </div>
+    <div id="player-state-container" class="text-center p-12 flex items-center justify-center w-screen">
+        {{ template "partials/play_button.html" . }}
     </div>
 
     <div class="flex flex-col items-center justify-center text-custom-text text-4xl m-4 pt-6">
-        <form id="musicTypeForm" class="flex justify-center gap-4">
+         <form id="musicTypeForm" class="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-4">
             {{ range .MusicType }}
-                <label class="flex items-center m-2 hover:cursor-pointer">
-                    <input type="radio" name="musicType" value="{{ .Name }}" checked class="mr-2">
-                    {{ .Name }}
-                </label>
-            {{end}}
+            <label class="flex items-center p-2 hover:cursor-pointer">
+                <input type="radio" name="musicType" value="{{ .Name }}"
+                    class="mr-2 h-4 w-4 accent-custom-secondary"
+                    {{ if eq .Name "Classical" }}checked{{ end }}>
+                {{ .Name }}
+            </label>
+            {{ else }}
+                 <p class="text-sm text-gray-400">No music types available.</p>
+            {{ end }}
         </form>
-        
-        <!-- AI Model Dropdown -->
-        <div class="m-4 pt-8">
-            <label for="aiModelDropdown">Model</label>
-            <select id="aiModelDropdown" class="bg-transparent hover:cursor-pointer">
+         <div class="m-4 pt-8">
+             <label for="aiModelDropdown">Model</label>
+             <select id="aiModelDropdown" name="aiModel" class="bg-transparent text-center hover:cursor-pointer text-custom-text border-b border-custom-text">
                 {{ range .ModelType }}
-                    <option value="{{ .Name }}" class="text-2xl">{{ .Name }}</option>
-                {{end}}
-            </select>
+                <option value="{{ .Name }}" class="text-black bg-white text-lg"
+                        {{ if eq .Name "lstm" }}selected{{ end }}>
+                    {{ .Name }}
+                </option>
+                {{ else }}
+                 <option value="" disabled class="text-gray-500 bg-white text-lg">No models available</option>
+                {{ end }}
+             </select>
         </div>
     </div>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const musicTypeForm = document.getElementById('musicTypeForm');
-        const aiModelDropdown = document.getElementById('aiModelDropdown');
-        const playButtonContainer = document.getElementById('playButtonContainer');
+     document.addEventListener('DOMContentLoaded', function () {
+         const musicTypeForm = document.getElementById('musicTypeForm');
+         const aiModelDropdown = document.getElementById('aiModelDropdown');
 
-        // Initialize current selections
-        let currentMusicType = document.querySelector('input[name="musicType"]:checked').value;
-        let currentAiModel = aiModelDropdown.value;
+        function updateHxVals() {
+             const playButtonContainer = document.getElementById('playButtonContainer');
+             // Eğer buton DOM'da yoksa (örn. müzik çalar gösteriliyorsa) fonksiyondan çık
+             if (!playButtonContainer) return;
 
-        // Combine selections in the HTMX request attribute
-        function updateRequestValues() {
-            playButtonContainer.setAttribute('hx-vals', JSON.stringify({ 
-                musicType: currentMusicType, 
-                aiModel: currentAiModel 
-            }));
-        }
+            // Seçili müzik türünü al (eğer yoksa ilkini veya boş string al)
+            const currentMusicType = document.querySelector('input[name="musicType"]:checked')?.value || document.querySelector('input[name="musicType"]')?.value || '';
+             // Seçili AI modelini al
+             const currentAiModel = aiModelDropdown.value;
 
-        // Update on music type change
-        musicTypeForm.addEventListener('change', function (event) {
-            if (event.target.name === 'musicType') {
-                currentMusicType = event.target.value;
-                updateRequestValues();
-            }
-        });
+             // Konsola uyarı bas (eğer seçim yapılmadıysa)
+             if (!currentMusicType && document.querySelector('input[name="musicType"]')) {
+                 console.warn("No music type selected.");
+             }
+              if (!currentAiModel && document.querySelector('#aiModelDropdown option')) {
+                 console.warn("No AI model selected.");
+             }
 
-        // Update on AI model dropdown change
-        aiModelDropdown.addEventListener('change', function () {
-            currentAiModel = aiModelDropdown.value;
-            updateRequestValues();
-        });
+             // Butonun hx-vals özelliğini JSON string olarak ayarla
+             playButtonContainer.setAttribute('hx-vals', JSON.stringify({
+                 musicType: currentMusicType,
+                 aiModel: currentAiModel
+             }));
+         }
 
-        // Set initial values
-        updateRequestValues();
+         // Form elemanlarında değişiklik olduğunda hx-vals'ı güncelle
+         // Event delegation kullanarak body üzerinden dinle
+         document.body.addEventListener('change', function(event) {
+             const target = event.target;
+             // Eğer değişen eleman müzik türü veya model dropdown ise güncelle
+             if (target.name === 'musicType' || target.id === 'aiModelDropdown') {
+                 updateHxVals();
+             }
+         });
+
+         // Sayfa ilk yüklendiğinde hx-vals'ı ayarla
+         updateHxVals();
+
+         // HTMX ile içerik değiştirildikten sonra (örn. müzik çalardan play butonuna dönüldüğünde) çalışacak kod
+         const playerStateContainer = document.getElementById('player-state-container');
+         if (playerStateContainer) {
+            playerStateContainer.addEventListener('htmx:afterSwap', function(event) {
+                 // Eğer yüklenen yeni içerik play butonunu içeriyorsa hx-vals'ı güncelle
+                 if (event.detail.elt.querySelector('#playButtonContainer')) {
+                      updateHxVals();
+                 }
+            });
+         } else {
+             console.error("Element with ID 'player-state-container' not found.");
+         }
     });
+
+     // Müzik çaları kapatma fonksiyonu (Modal içerisindeki X butonu tarafından çağrılır)
+     function closeModal() {
+        const modal = document.getElementById('musicPlayerModal');
+        if (modal) {
+            // Önce sesi durdur
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+                // Buton ikonlarını sıfırlamaya gerek yok çünkü modal kapanıyor
+            }
+            // Modalı kaldır
+            modal.remove();
+
+            // Opsiyonel: Play butonunu geri yükle (Eğer modal kapanınca otomatik geri dönmesini istiyorsan)
+            // Bu genellikle modal içindeki kapatma butonuna hx-get ile play_button partial'ını
+            // player-state-container'a yükleterek yapılır.
+            // Eğer öyle bir HTMX isteği yoksa, burada manuel olarak tetiklenebilir:
+            // htmx.ajax('GET', '/partials/play-button', '#player-state-container');
+        }
+     }
+
+
+     // Global ses kontrol değişkenleri
+     let currentAudio = null;
+     let currentAudioPlayButton = null; // Modal içindeki play/pause butonunu takip etmek için
+
+     // Müzik çalar partial'ı tarafından kullanılan ses oynatma/durdurma fonksiyonu
+     function playModalAudio(audioSrc, buttonElement) {
+        const playIcon = buttonElement.querySelector('.play-icon');
+        const pauseIcon = buttonElement.querySelector('.pause-icon');
+
+        // Eğer aynı ses zaten çalıyorsa, durdur
+        if (currentAudio && !currentAudio.paused && currentAudio.src.endsWith(audioSrc)) {
+            currentAudio.pause();
+            if (playIcon) playIcon.classList.remove('hidden');
+            if (pauseIcon) pauseIcon.classList.add('hidden');
+            currentAudioPlayButton = null; // Buton takibini bırak
+        } else {
+            // Başka bir ses çalıyorsa onu durdur (Bu senaryo modal içinde pek olmaz ama güvenlik için)
+            if (currentAudio) {
+                currentAudio.pause();
+                if (currentAudioPlayButton) { // Eğer önceki buton takip ediliyorsa ikonunu güncelle
+                    const prevPlayIcon = currentAudioPlayButton.querySelector('.play-icon');
+                    const prevPauseIcon = currentAudioPlayButton.querySelector('.pause-icon');
+                    if (prevPlayIcon) prevPlayIcon.classList.remove('hidden');
+                    if (prevPauseIcon) prevPauseIcon.classList.add('hidden');
+                }
+            }
+            // Yeni sesi çal
+            currentAudio = new Audio(audioSrc);
+            currentAudio.play().then(() => {
+                if (playIcon) playIcon.classList.add('hidden');
+                if (pauseIcon) pauseIcon.classList.remove('hidden');
+                currentAudioPlayButton = buttonElement; // Şu anki modal butonunu takip et
+                // Ses bittiğinde ikonları sıfırla
+                currentAudio.onended = () => {
+                    if (playIcon) playIcon.classList.remove('hidden');
+                    if (pauseIcon) pauseIcon.classList.add('hidden');
+                    currentAudio = null;
+                    currentAudioPlayButton = null; // Takibi bırak
+                };
+            }).catch(error => {
+                if (playIcon) playIcon.classList.remove('hidden');
+                if (pauseIcon) pauseIcon.classList.add('hidden');
+                currentAudio = null;
+                currentAudioPlayButton = null; // Takibi bırak
+            });
+        }
+    }
+
+     // HTMX swap işleminden hemen önce sesi durdurma (eğer çalıyorsa)
+     document.body.addEventListener('htmx:beforeSwap', function (evt) {
+         // Eğer hedef alan player-state-container ise ve modal sesi çalıyorsa durdur
+         if (currentAudio && evt.detail.target.id === 'player-state-container') {
+             currentAudio.pause();
+             // Modal içindeki ikonları sıfırlamaya gerek yok, çünkü modal muhtemelen kaybolacak
+             currentAudio = null;
+             currentAudioPlayButton = null; // Referansı temizle
+             console.log("Audio stopped due to HTMX swap in player state container.");
+         }
+     });
 </script>
 
-
-{{ template "bottom" . }}
+{{ template "layouts/base.html:bottom" . }}
+{{ end }}

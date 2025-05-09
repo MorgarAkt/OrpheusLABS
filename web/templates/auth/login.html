@@ -1,6 +1,7 @@
-{{ template "top" . }}
+{{ define "auth/login.html" }}
+{{ template "layouts/base.html:top" . }}
 
-{{ template "navbar" . }}
+{{ template "partials/navbar.html" . }}
 
 <div class="min-h-screen flex items-center justify-center relative z-10">
     <div id="login-inner-box" class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full mx-4">
@@ -13,8 +14,8 @@
                 <label for="email" class="block text-custom-text text-xl font-medium mb-2">
                     Email Address
                 </label>
-                <input 
-                    type="email" 
+                <input
+                    type="email"
                     id="email"
                     name="email"
                     class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-custom-primary font-sans"
@@ -27,8 +28,8 @@
                 <label for="password" class="block text-custom-text text-xl font-medium mb-2">
                     Password
                 </label>
-                <input 
-                    type="password" 
+                <input
+                    type="password"
                     id="password"
                     name="password"
                     class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-custom-primary font-sans"
@@ -46,10 +47,11 @@
         </form>
 
         <p class="text-center text-custom-text text-sm mt-6 font-sans">
-            Don't have an account? 
-            <a href="/signup" class="text-custom-secondary hover:underline">Create one</a>
+            Don't have an account?
+            <a href="/register" class="text-custom-secondary hover:underline">Create one</a>
         </p>
     </div>
 </div>
 
-{{ template "bottom" . }}
+{{ template "layouts/base.html:bottom" . }}
+{{ end }}

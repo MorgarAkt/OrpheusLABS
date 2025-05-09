@@ -1,0 +1,56 @@
+{{ define "partials/edit-title-form.html" }}
+<form class="w-full"
+      hx-put="/api/v1/music/{{.MusicID}}/title"
+      hx-target="#music-title-display-{{.MusicID}}" {{/* Başarılı olunca tüm alanı (h2 dahil) günceller */}}
+      hx-swap="innerHTML"
+      hx-ext="json-enc"
+      hx-on::after-request="if(event.detail.failed) {
+          console.error('Title update failed:', event.detail.xhr.responseText);
+          htmx.trigger('#global-error-container', 'showNotification', {
+              detail: { message: event.detail.xhr.responseText || 'Failed to update title.' }
+          });
+          {{/* Başarısız olursa formu tekrar göstermeden eski başlığa dönmek için bir yol gerekebilir */}}
+          {{/* Veya hatayı input altında gösterip formu bırakabiliriz. Şimdilik global hata. */}}
+          htmx.ajax('GET', '/partials/title-text?musicID={{.MusicID}}&currentTitle={{urlquery .CurrentTitle}}', {
+            target: '#music-title-display-{{.MusicID}}',
+            swap: 'innerHTML'
+          });
+
+      } else {
+          {{/* Başarılı olduğunda sunucu yeni başlığı text olarak dönecek,
+             HTMX bunu doğrudan #title-text-{{.MusicID}}'nin yerine koyacak.
+             Ancak biz tüm #music-title-display-{{.MusicID}} alanını güncellediğimiz için
+             sunucudan dönen yanıtın <h2 id="title-text-{{.MusicID}}"...>Yeni Başlık</h2>
+             şeklinde tam HTML olması daha iyi. Ya da handler'dan sadece yeni başlığı döndürüp
+             burada JS ile h2'yi oluşturabiliriz.
+             Şu anki Backend handler'ı sadece yeni başlığı metin olarak döner.
+             hx-target'ı doğrudan h2 yapıp, hx-swap="outerHTML" de kullanılabilirdi.
+             Şimdilik #music-title-display-{{.MusicID}} hedefiyle, Backend'in h2'yi içeren bir
+             partial dönmesi veya bu after-request'te JS ile manuel güncelleme yapması gerekir.
+
+             Alternatif: Sunucu 200 OK ile sadece yeni başlığı döner.
+             Ve hx-target="#title-text-{{.MusicID}}" hx-swap="innerHTML" yapılır.
+             Bu durumda, buradaki after-request'te formu kaldırıp h2'yi göstermemiz gerekir.
+
+             Mevcut durumda, backend sadece yeni başlık metnini dönüyor.
+             Bu metnin doğrudan #music-title-display-{{.MusicID}} içine yazılması,
+             formu ve h2'yi silecektir. Bunu önlemek için, başarılı swap sonrası formu
+             eski h2 yapısına çeviren bir HTMX isteği daha yapabiliriz.
+          */}}
+          htmx.ajax('GET', '/partials/title-text?musicID={{.MusicID}}&currentTitle=' + encodeURIComponent(event.detail.xhr.responseText), {
+            target: '#music-title-display-{{.MusicID}}',
+            swap: 'innerHTML'
+          });
+      }"
+      _="on htmx:load take focus() then select()"> {{/* Alpine.js veya _hyperscript benzeri, onload focus */}}
+    <input type="text"
+           name="title"
+           class="w-full text-2xl md:text-3xl font-bold p-1 border border-custom-primary rounded"
+           value="{{.CurrentTitle}}"
+           required minlength="1" maxlength="200"
+           onblur="htmx.trigger(this.closest('form'), 'submit')"
+           onkeydown="if(event.key === 'Enter') { event.preventDefault(); htmx.trigger(this.closest('form'), 'submit'); } else if(event.key === 'Escape') { event.preventDefault(); htmx.ajax('GET', '/partials/title-text?musicID={{.MusicID}}&currentTitle={{urlquery .CurrentTitle}}', {target: '#music-title-display-{{.MusicID}}', swap: 'innerHTML'}); }">
+    {{/* Kaydet butonu opsiyonel, onblur ve Enter ile çalışıyor */}}
+    {{/* <button type="submit" class="hidden">Save</button> */}}
+</form>
+{{ end }}

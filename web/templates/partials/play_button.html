@@ -1,0 +1,44 @@
+{{ define "partials/play_button.html" }}
+<div id="playButtonContainer" hx-post="/api/v1/generate-music" hx-target="#player-state-container" hx-swap="innerHTML"
+    hx-ext="json-enc" class="flex flex-col items-center justify-center w-48 h-48 relative" hx-on::before-request="
+         console.log('beforeRequest: Hiding play, Showing loading');
+         const playContent = this.querySelector('.play-content');
+         const loadingContent = this.querySelector('.loading-content');
+         if (playContent) playContent.classList.add('hidden');
+         if (loadingContent) loadingContent.classList.remove('hidden');
+     "
+    hx-on:htmx:responseError="alert('HTMX Response Error on Play Button!'); console.log('Error event on play button:', event);"
+    hx-on::send-error="
+         console.log('sendError: Reverting to play button visibility');
+         const playContent = this.querySelector('.play-content');
+         const loadingContent = this.querySelector('.loading-content');
+         if (playContent) playContent.classList.remove('hidden');
+         if (loadingContent) loadingContent.classList.add('hidden');
+     ">
+
+    <div class="play-content">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+            class="size-48 hover:cursor-pointer hover:scale-125 ease-in duration-100 text-white drop-shadow-lg">
+            <path fill-rule="evenodd"
+                d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z"
+                clip-rule="evenodd" />
+        </svg>
+        {{ if .Error }}
+        <p class="text-red-500 text-xs mt-1 absolute bottom-0 left-0 right-0 text-center">{{ .Error }}</p>
+        {{ end }}
+    </div>
+
+    <div class="loading-content hidden">
+        <div class="relative">
+            <div class="animate-spin rounded-full h-32 w-32 border-b-4 border-t-4 border-white opacity-80"></div>
+        </div>
+        <div class="mt-4 text-xl flex justify-center text-white opacity-90">
+            <p class="inline">Creating...</p>
+            <span class="inline-block overflow-hidden">
+                <span class="animate-ping">..</span>
+            </span>
+        </div>
+    </div>
+
+</div>
+{{ end }}

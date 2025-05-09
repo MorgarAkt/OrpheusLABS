@@ -1,0 +1,310 @@
+{{ define "partials/music_player.html" }}
+<div id="musicPlayer" class="text-custom-text z-50 bg-white rounded-lg shadow-xl overflow-hidden flex items-center p-8 md:p-14">
+    <div class="flex-shrink-0 md:h-56 md:w-auto mr-8 md:mr-12">
+         <img src="{{.CoverArtPath }}"
+             alt="Album Art for {{.GeneratedTitle}}"
+             class="w-full h-full object-cover rounded-md shadow-md"
+             onerror="this.onerror=null; this.src='/static/images/placeholder_cover.png';">
+    </div>
+
+    <div class="flex-grow">
+        <div class="flex justify-between items-center mb-4">
+            {{/* --- Başlık Düzenleme Alanı --- */}}
+            <div id="music-title-display-{{.MusicID}}" class="flex-grow mr-2"> {{/* Kapsayıcı div */}}
+                <h2 id="title-text-{{.MusicID}}"
+                    class="text-2xl md:text-3xl font-bold truncate hover:text-custom-primary hover:cursor-pointer"
+                    title="{{.GeneratedTitle}}"
+                    hx-get="/partials/edit-title-form?musicID={{.MusicID}}&currentTitle={{ urlquery .GeneratedTitle }}"
+                    hx-target="#music-title-display-{{.MusicID}}"
+                    hx-swap="innerHTML">
+                    {{.GeneratedTitle}}
+                </h2>
+            </div>
+            <button onclick="closePlayer()" class="text-2xl md:text-3xl focus:outline-none text-gray-500 hover:text-gray-700 ml-4" aria-label="Close Player">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+
+        {{/* ... Progress Bar ... */}}
+        <div class="mb-6">
+            <div class="flex items-center justify-between text-lg text-gray-600 mb-2">
+                <span id="currentTime" class="text-xl">0:00</span>
+                <span id="duration" class="text-xl">0:00</span>
+            </div>
+            <div class="relative h-3 rounded-full cursor-pointer group bg-gray-200" id="progressBarContainer">
+                <div class="absolute top-0 left-0 h-full w-0 bg-custom-secondary rounded-full" id="progressBar" style="width: 0%"></div>
+                <div class="absolute top-1/2 left-0 h-6 w-6 bg-custom-primary rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-2 border-white" id="progressHandle" style="left: 0%"></div>
+            </div>
+        </div>
+
+        {{/* ... Kontrol Butonları ... */}}
+        <div class="flex items-center justify-center space-x-8 mb-8 text-custom-primary">
+             <button class="p-3 focus:outline-none transition-colors hover:text-custom-secondary" id="prevButton" aria-label="Previous Track">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>
+             </button>
+             {{ if .Mp3Url }}
+             <button class="p-4 mx-4 rounded-full bg-custom-primary text-white hover:opacity-90 focus:outline-none shadow-lg transform hover:scale-105 transition-all" onclick="togglePlayPause('{{.Mp3Url}}', this)" id="playPauseButton" aria-label="Play/Pause">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="currentColor" viewBox="0 0 16 16" class="play-icon"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z" /></svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="currentColor" viewBox="0 0 16 16" class="pause-icon hidden"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z" /></svg>
+             </button>
+             {{ else }}
+             <div class="text-red-500 text-2xl text-center p-4">MP3 audio not available.</div>
+             {{ end }}
+            <button class="p-3 focus:outline-none transition-colors hover:text-custom-secondary" id="nextButton" aria-label="Next Track">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
+            </button>
+        </div>
+
+        {{/* İndirme ve Kaydetme Linkleri/Butonları */}}
+        <div class="flex justify-center items-center space-x-8 text-xl text-gray-600">
+            {{/* İndirme Linkleri */}}
+            {{ if .Mp3Url }}
+            <a href="{{.Mp3Url}}" download="{{.GeneratedTitle}}.mp3" class="flex items-center hover:text-custom-primary text-lg transition-colors p-2" title="Download MP3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> MP3
+            </a>
+            {{ end }}
+            {{ if .MidiUrl }}
+            <a href="{{.MidiUrl}}" download="{{.GeneratedTitle}}.mid" class="flex items-center hover:text-custom-primary text-lg transition-colors p-2" title="Download MIDI">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> MIDI
+            </a>
+            {{ end }}
+
+            {{/* Kaydetme Butonu (Güncellendi) */}}
+            {{ if and .Auth .MusicID }} {{/* Sadece giriş yapmışsa ve MusicID varsa göster */}}
+            <button hx-post="/api/v1/save-music"
+                    hx-ext="json-enc"
+                    {{/* hx-vals'a music_id eklendi */}}
+                    hx-vals='{{ printf `{"music_id": "%s", "title": "%s", "mp3_file_path": "%s", "midi_file_path": "%s", "music_type": "%s", "model_type": "%s", "is_public": false }` .MusicID .GeneratedTitle .Mp3Url .MidiUrl .MusicType .ModelType | js }}'
+                    {{/* hx-target ve hx-swap kaldırıldı */}}
+                    hx-indicator="#save-indicator-{{.MusicID}}" {{/* Dinamik ID */}}
+                    {{/* Başarılı istek sonrası butonu güncelle */}}
+                    hx-on::after-request="if(event.detail.successful) {
+                        const btn = document.getElementById('save-button-{{.MusicID}}');
+                        if(btn) {
+                            btn.disabled = true;
+                            btn.innerHTML = `<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='mr-2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'></path><polyline points='17 21 17 13 7 13 7 21'></polyline><polyline points='7 3 7 8 15 8'></polyline></svg> Saved`;
+                            btn.classList.add('opacity-50', 'cursor-not-allowed');
+                            btn.classList.remove('hover:text-custom-primary');
+                        }
+                     }"
+                    id="save-button-{{.MusicID}}" {{/* Buton için dinamik ID */}}
+                    class="flex items-center hover:text-custom-primary text-lg transition-colors p-2"
+                    title="Save Changes to Library">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                <span class="button-text">Save</span> {{/* Metin için span */}}
+                 <span id="save-indicator-{{.MusicID}}" class="htmx-indicator ml-2">
+                     <svg class="animate-spin h-4 w-4 text-custom-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </span>
+            </button>
+            {{ else if not .Auth }} {{/* Giriş yapmamışsa */}}
+            <a href="/login?redirect=/" class="flex items-center hover:text-custom-primary text-lg transition-colors p-2" title="Login to Save">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+                Login to Save
+            </a>
+            {{ end }}
+        </div>
+    </div>
+</div>
+
+{{/* ... JavaScript Kodu (togglePlayPause vb.) ... */}}
+<script>
+    // JavaScript kodu aynı kalır, sadece görsel düzenlemeler yapıldı
+    let audioPlayer = null;
+    let progressInterval = null;
+    let isDragging = false;
+
+    function togglePlayPause(audioUrl, button) {
+        if (!audioPlayer) {
+            audioPlayer = new Audio(audioUrl);
+            setupAudioEvents();
+        }
+        const playIcon = button.querySelector('.play-icon');
+        const pauseIcon = button.querySelector('.pause-icon');
+        if (audioPlayer.paused) {
+            audioPlayer.play();
+            if(playIcon) playIcon.classList.add('hidden');
+            if(pauseIcon) pauseIcon.classList.remove('hidden');
+            startProgressTracking();
+        } else {
+            audioPlayer.pause();
+             if(playIcon) playIcon.classList.remove('hidden');
+            if(pauseIcon) pauseIcon.classList.add('hidden');
+            stopProgressTracking();
+        }
+    }
+
+    function setupAudioEvents() {
+        const progressBarContainer = document.getElementById('progressBarContainer');
+        const progressHandle = document.getElementById('progressHandle');
+        const playButton = document.getElementById('playPauseButton');
+        if (!audioPlayer || !progressBarContainer || !progressHandle || !playButton) {
+             console.error("Required elements for audio event setup not found.");
+             return;
+         }
+        audioPlayer.addEventListener('loadedmetadata', function () {
+            const durationEl = document.getElementById('duration');
+            if (durationEl) durationEl.textContent = formatTime(audioPlayer.duration);
+        });
+        audioPlayer.addEventListener('ended', function () {
+             const playIcon = playButton.querySelector('.play-icon');
+             const pauseIcon = playButton.querySelector('.pause-icon');
+             if(playIcon) playIcon.classList.remove('hidden');
+             if(pauseIcon) pauseIcon.classList.add('hidden');
+            stopProgressTracking();
+            audioPlayer.currentTime = 0;
+            updateProgressBar(0);
+            updateProgressHandle(0);
+            const currentTimeEl = document.getElementById('currentTime');
+            if (currentTimeEl) currentTimeEl.textContent = formatTime(0);
+        });
+        audioPlayer.addEventListener('error', (e) => {
+             console.error("Audio playback error:", e);
+             const playIcon = playButton.querySelector('.play-icon');
+             const pauseIcon = playButton.querySelector('.pause-icon');
+             if(playIcon) playIcon.classList.remove('hidden');
+             if(pauseIcon) pauseIcon.classList.add('hidden');
+             stopProgressTracking();
+         });
+        progressBarContainer.addEventListener('click', function (e) {
+            if (!audioPlayer || !audioPlayer.duration) return;
+            const rect = progressBarContainer.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            const newTime = pos * audioPlayer.duration;
+            audioPlayer.currentTime = newTime;
+            updateProgressBar(pos * 100);
+            updateProgressHandle(pos * 100);
+            const currentTimeEl = document.getElementById('currentTime');
+            if(currentTimeEl) currentTimeEl.textContent = formatTime(newTime);
+        });
+        progressHandle.addEventListener('mousedown', function (e) {
+            isDragging = true;
+            document.addEventListener('mousemove', handleDrag);
+            document.addEventListener('mouseup', stopDrag);
+            e.preventDefault();
+        });
+        function handleDrag(e) {
+            if (isDragging && audioPlayer && audioPlayer.duration) {
+                const rect = progressBarContainer.getBoundingClientRect();
+                let pos = (e.clientX - rect.left) / rect.width;
+                pos = Math.max(0, Math.min(1, pos));
+                const newTime = pos * audioPlayer.duration;
+                audioPlayer.currentTime = newTime;
+                updateProgressBar(pos * 100);
+                updateProgressHandle(pos * 100);
+                const currentTimeEl = document.getElementById('currentTime');
+                 if(currentTimeEl) currentTimeEl.textContent = formatTime(newTime);
+            }
+        }
+        function stopDrag() {
+            if (isDragging) {
+                isDragging = false;
+                document.removeEventListener('mousemove', handleDrag);
+                document.removeEventListener('mouseup', stopDrag);
+            }
+        }
+        const prevButton = document.getElementById('prevButton');
+        const nextButton = document.getElementById('nextButton');
+        if(prevButton) {
+            prevButton.addEventListener('click', function () { /* ... */ });
+        }
+       if(nextButton) {
+            nextButton.addEventListener('click', function () { /* ... */ });
+       }
+    }
+
+    function startProgressTracking() {
+        stopProgressTracking();
+        progressInterval = setInterval(function () {
+            if (audioPlayer && !audioPlayer.paused && audioPlayer.duration) {
+                const currentTime = audioPlayer.currentTime;
+                const duration = audioPlayer.duration;
+                const progressPercent = (currentTime / duration) * 100;
+                const currentTimeEl = document.getElementById('currentTime');
+                if(currentTimeEl) currentTimeEl.textContent = formatTime(currentTime);
+                updateProgressBar(progressPercent);
+                if (!isDragging) {
+                    updateProgressHandle(progressPercent);
+                }
+            }
+        }, 250);
+    }
+
+    function stopProgressTracking() {
+        if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+        }
+    }
+
+    function updateProgressBar(percent) {
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) {
+            progressBar.style.width = Math.max(0, Math.min(100, percent)) + '%';
+        }
+    }
+
+    function updateProgressHandle(percent) {
+        const handle = document.getElementById('progressHandle');
+        if (handle) {
+            handle.style.left = Math.max(0, Math.min(100, percent)) + '%';
+        }
+    }
+
+    function formatTime(seconds) {
+        if (isNaN(seconds) || !isFinite(seconds)) {
+            return '0:00';
+        }
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return minutes + ':' + (remainingSeconds < 10 ? '0' : '') + remainingSeconds;
+    }
+
+    function closePlayer() {
+        if (audioPlayer) {
+            audioPlayer.pause();
+            audioPlayer.src = '';
+            audioPlayer.load();
+            audioPlayer = null;
+        }
+        stopProgressTracking();
+        const containerElement = document.getElementById('player-state-container');
+        if (!containerElement) {
+            console.error("Player state container (#player-state-container) not found.");
+            const playerElement = document.getElementById('musicPlayer');
+            if(playerElement) playerElement.remove();
+            return;
+        }
+        if (typeof htmx !== 'undefined') {
+            htmx.ajax('GET', '/partials/play-button', { target: '#player-state-container', swap: 'innerHTML' })
+             .catch(error => {
+                 console.error("HTMX request to fetch play button failed:", error);
+                 containerElement.innerHTML = '<p class="text-red-500">Error loading controls.</p>';
+             });
+        } else {
+            console.error("htmx object is not defined.");
+            containerElement.innerHTML = '';
+             const playerElement = document.getElementById('musicPlayer');
+             if(playerElement) playerElement.remove();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+       const playerElement = document.getElementById('musicPlayer');
+       if (playerElement && !playerElement.classList.contains('animate-in-done')) {
+           playerElement.classList.add('translate-y-full', 'opacity-0', 'transition-all', 'duration-300', 'ease-out');
+           void playerElement.offsetWidth;
+           setTimeout(() => {
+               playerElement.classList.remove('translate-y-full', 'opacity-0');
+               playerElement.classList.add('animate-in-done');
+           }, 50);
+       }
+       // Player ilk yüklendiğinde setupAudioEvents çağrılmalı (eğer ses varsa)
+       const playButton = document.getElementById('playPauseButton');
+       if(playButton && audioPlayer == null && '{{.Mp3Url}}') { // Sadece ses varsa ve player henüz kurulmadıysa
+           setupAudioEvents();
+       }
+    });
+</script>
+{{ end }}

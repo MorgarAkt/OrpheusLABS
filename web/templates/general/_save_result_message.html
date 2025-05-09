@@ -1,0 +1,25 @@
+{{ define "general/_save_result_message.html" }}
+    {{ if .IsError }}
+        <span class="text-red-600">{{ .Message }}</span>
+    {{ else }}
+         <span class="text-green-600 font-semibold">{{ .Message }}</span>
+         <script>
+            // Find the closest button triggering this and disable it
+            // This is a bit brittle, might need refinement
+            // Use a more specific selector if possible, e.g., give the button an ID
+            const saveButton = document.querySelector('[hx-post="/api/v1/save-music"]');
+            if (saveButton) {
+                saveButton.disabled = true;
+                saveButton.innerText = 'Saved!'; // Or use a different icon/text
+                saveButton.classList.add('opacity-50', 'cursor-not-allowed');
+                saveButton.classList.remove('hover:opacity-90');
+                // Remove HTMX attributes to prevent further posts
+                saveButton.removeAttribute('hx-post');
+                saveButton.removeAttribute('hx-vals');
+                saveButton.removeAttribute('hx-target');
+                saveButton.removeAttribute('hx-swap');
+                saveButton.removeAttribute('hx-ext');
+            }
+         </script>
+    {{ end }}
+{{ end }}

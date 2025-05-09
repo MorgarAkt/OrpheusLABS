@@ -1,4 +1,4 @@
-{{ define "top" }}
+{{ define "layouts/base.html:top" }}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -6,42 +6,319 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ .title }}</title>
+    {{/* Derlenmiş Tailwind CSS dosyasını bağlıyoruz */}}
     <link rel="stylesheet" href="/static/css/style.css">
+    {{/* Google Fonts bağlantıları */}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=New+Amsterdam&display=swap" rel="stylesheet">
+    <style>
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0; 
+        }
+
+        /* Bildirim Konteynerleri için Geçişler */
+        #global-error-container,
+        #global-success-container {
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+            opacity: 0;
+            visibility: hidden;
+            z-index: 1000;
+        }
+
+        #global-error-container.show,
+        #global-success-container.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Logout Modalı için Stiller */
+        #logoutConfirmModal {
+            transition: opacity 0.2s ease-in-out;
+            z-index: 2000; 
+        }
+        #logoutConfirmModal .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5); 
+        }
+        #logoutConfirmModal .modal-content {
+            max-width: 400px; 
+        }
+
+    </style>
 </head>
 
-<style>
-    body,
-    html {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-    }
+{{/* Body başlangıcı - Tailwind sınıfları ile temel görünüm */}}
+<body
+    class="bg-custom-primary text-custom-text font-bold text-3xl w-screen h-screen font-newamsterdam relative flex items-center justify-center overflow-hidden">
 
-    canvas {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 0;
-    }
-</style>
+    {{/* --- Global Hata Bildirimi (Alt Sağ - Güncellenmiş Stil) --- */}}
+    <div id="global-error-container"
+        class="fixed bottom-6 right-6 min-w-[280px] max-w-md w-auto bg-white border border-gray-200 px-5 py-3 rounded-lg shadow-lg flex items-center justify-between space-x-4"
+        role="alert">
+        <span class="flex items-center">
+             {{/* Hata ikonu */}}
+             <svg class="inline-block w-6 h-6 stroke-current text-red-600 flex-shrink-0" xmlns="http://www.w3.org/2000/svg"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {{/* Hata mesajı alanı */}}
+            <span id="global-error-message" class="text-sm font-sans font-medium ml-3 text-red-700"></span>
+        </span>
+         {{/* Kapatma butonu */}}
+         <span class="cursor-pointer" onclick="hideNotification('global-error-container');">
+            <svg class="fill-current h-5 w-5 text-red-500 hover:text-red-700 flex-shrink-0" role="button"
+                xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <title>Close</title>
+                <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z" />
+            </svg>
+        </span>
+    </div>
 
-<body class="bg-custom-primary text-custom-text font-bold text-3xl w-screen h-screen font-newamsterdam flex items-center justify-center">    
+     {{/* --- Global Başarı Bildirimi (Alt Sağ - Güncellenmiş Stil) --- */}}
+    <div id="global-success-container"
+         class="fixed bottom-6 right-6 min-w-[280px] max-w-md w-auto bg-white border border-gray-200 px-5 py-3 rounded-lg shadow-lg flex items-center justify-between space-x-4"
+         role="status">
+        <span class="flex items-center">
+            {{/* Başarı ikonu */}}
+             <svg class="inline-block w-6 h-6 stroke-current text-green-600 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+             </svg>
+             {{/* Başarı mesajı alanı */}}
+            <span id="global-success-message" class="text-sm font-sans font-medium ml-3 text-green-800"></span>
+        </span>
+         {{/* Kapatma butonu */}}
+         <span class="cursor-pointer" onclick="hideNotification('global-success-container');">
+            <svg class="fill-current h-5 w-5 text-green-600 hover:text-green-800 flex-shrink-0" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <title>Close</title>
+                <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z" />
+            </svg>
+        </span>
+    </div>
+
     <canvas id="waveCanvas"></canvas>
+
+    {{ template "partials/navbar.html" . }}
+
 
 {{ end }}
 
-{{ define "bottom" }}
+{{ define "layouts/base.html:bottom" }}
+
+    <div id="logoutConfirmModal" class="fixed inset-0 flex items-center justify-center hidden"> 
+        <div class="modal-overlay absolute inset-0" onclick="hideLogoutConfirmModal();"></div>
+
+        <div class="modal-content bg-white rounded-lg shadow-xl p-6 relative text-center text-custom-text">
+            <h3 class="text-xl md:text-2xl font-semibold mb-4">Oturumu Kapatmayı Onayla</h3>
+            <p class="text-base md:text-lg mb-6 font-normal font-sans">Çıkış yapmak istediğinize emin misiniz?</p>
+             {{/* Modal Butonları */}}
+             <div class="flex justify-center space-x-4">
+                <button
+                    onclick="hideLogoutConfirmModal();"
+                    class="px-4 py-2 rounded bg-gray-300 text-gray-800 hover:bg-gray-400 transition font-medium">
+                    İptal
+                </button>
+                <button
+                    onclick="confirmLogout();"
+                    id="confirm-logout-button"
+                    class="px-4 py-2 rounded bg-custom-primary text-white hover:opacity-90 transition font-medium flex items-center justify-center">
+                    <span class="button-text">Oturumu Kapat</span>
+                    {{/* Modal içindeki yükleme göstergesi */}}
+                    <span id="modal-logout-indicator" class="htmx-indicator ml-2 hidden">
+                         <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/wave.js"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+    <script>
+        function hideNotification(containerId) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.classList.remove('show');
+                // Eğer zamanlayıcı varsa temizle
+                if (container.hideTimer) {
+                    clearTimeout(container.hideTimer);
+                    container.hideTimer = null;
+                }
+            }
+        }
+
+        function showNotification(containerId, message, duration = 5000) {
+            const container = document.getElementById(containerId);
+            // Mesaj span'ının ID'sini dinamik olarak bul (örn: global-error-container -> global-error-message)
+            const messageSpan = document.getElementById(containerId.replace('-container', '-message'));
+
+            if (container && messageSpan) {
+                messageSpan.textContent = message;
+                container.classList.add('show');
+
+                // Eğer zaten bir zamanlayıcı varsa temizle
+                if (container.hideTimer) {
+                    clearTimeout(container.hideTimer);
+                }
+
+                // Belirli bir süre sonra otomatik olarak gizle
+                container.hideTimer = setTimeout(() => {
+                    hideNotification(containerId);
+                }, duration);
+            } else {
+                 console.error("Bildirim konteyneri veya mesaj alanı bulunamadı:", containerId);
+            }
+        }
+
+        // --- HTMX Hata Yakalama (GÜNCELLENMİŞ BÖLÜM) ---
+        document.body.addEventListener('htmx:responseError', function (event) {
+            let errorMessage = "Beklenmedik bir hata oluştu."; // Varsayılan mesaj
+            const xhr = event.detail.xhr;
+            const responseText = xhr.responseText;
+            const contentType = xhr.getResponseHeader("Content-Type");
+
+            try {
+                // HTML yanıtından spesifik hata mesajlarını ayrıştırmaya çalış
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(responseText, 'text/html');
+                // Aranan hata mesajı elementleri için daha fazla seçici eklendi.
+                // Bu seçiciler, projenizdeki çeşitli hata gösterme biçimlerine uyum sağlamalıdır.
+                const partialErrorMessageElement = doc.querySelector(
+                    '#global-error-message, .partial-error-message, ' + // Genel ve partial hata mesajları için class/ID
+                    '#register-result .text-red-600, .auth-error-container .error-text, ' + // auth/register ve login için daha spesifik hedefler
+                    'body > pre' // Bazen Go varsayılan hata sayfası <pre> içinde olabilir
+                );
+                
+                if (partialErrorMessageElement && partialErrorMessageElement.textContent.trim()) {
+                    errorMessage = partialErrorMessageElement.textContent.trim();
+                } else if (contentType && contentType.toLowerCase().includes("application/json")) {
+                    // Yanıtın JSON olduğu belirtilmişse JSON olarak ayrıştırmayı dene
+                    const jsonResponse = JSON.parse(responseText);
+                    if (jsonResponse && jsonResponse.error) {
+                        errorMessage = jsonResponse.error;
+                    } else if (jsonResponse && jsonResponse.message) {
+                        errorMessage = jsonResponse.message;
+                    } else {
+                        // JSON formatında ama beklenen 'error' veya 'message' alanı yoksa
+                        errorMessage = `Hata ${xhr.status}: ${xhr.statusText || 'İstek başarısız oldu (JSON formatı bekleniyor)'}`;
+                    }
+                } else {
+                    // HTML'den anlamlı bir hata mesajı çıkarılamadıysa ve JSON değilse,
+                    // kısa ve HTML olmayan yanıtları doğrudan kullanmayı dene.
+                    // Gin'in varsayılan 404'ü "404 page not found" gibi kısa bir metin olabilir.
+                    if (responseText && responseText.length < 100 && !responseText.trim().startsWith("<")) {
+                        errorMessage = responseText;
+                    } else if (xhr.statusText) {
+                        errorMessage = `Hata ${xhr.status}: ${xhr.statusText}`;
+                    } else {
+                        errorMessage = `Hata ${xhr.status}: Sunucudan geçersiz yanıt alındı.`;
+                    }
+                }
+            } catch (e) {
+                 // JSON veya HTML ayrıştırma sırasında bir hata oluşursa
+                 errorMessage = `Hata ${xhr.status}: ${xhr.statusText || 'Yanıt işlenirken bir sorun oluştu.'}`;
+                console.error("HTMX hata yanıtı ayrıştırılamadı. Ham yanıt:", responseText, "Ayrıştırma hatası:", e);
+            }
+
+            console.error("HTMX Yanıt Hatası Oluştu:", event.detail.error || "Bilgi yok", "XHR Status:", xhr.status, "Yanıt:", responseText);
+            showNotification('global-error-container', errorMessage, 8000);
+
+            // Play butonu hatası durumunda UI sıfırlama (bu kısım aynı kalabilir)
+            const requestingElement = event.detail.elt;
+            if (requestingElement && requestingElement.id === 'playButtonContainer') {
+                 console.log('htmx:responseError olayı playButtonContainer tarafından tetiklendi. UI sıfırlanıyor.');
+                 const playContent = requestingElement.querySelector('.play-content');
+                 const loadingContent = requestingElement.querySelector('.loading-content');
+                 if (playContent) playContent.classList.remove('hidden');
+                 if (loadingContent) loadingContent.classList.add('hidden');
+             }
+        });
+        // --- HTMX Hata Yakalama Sonu ---
+
+
+        // --- Sayfa Yüklendiğinde Başarı Mesajı Kontrolü ---
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const successParam = urlParams.get('success');
+
+            if (successParam) {
+                let successMessage = "İşlem başarıyla tamamlandı."; // Varsayılan mesaj
+                // Parametre değerine göre özel mesajlar
+                switch (successParam) {
+                    case 'login_ok':
+                        successMessage = "Başarıyla giriş yaptınız!";
+                        break;
+                    case 'register_ok':
+                        successMessage = "Hesabınız başarıyla oluşturuldu ve giriş yapıldı!";
+                        break;
+                    case 'logout_ok':
+                        successMessage = "Başarıyla çıkış yaptınız.";
+                        break;
+                    case 'save_ok': // Olası başka bir başarı durumu
+                        successMessage = "Başarıyla kaydedildi.";
+                        break;
+                    // İhtiyaç halinde başka durumlar eklenebilir
+                }
+                // Başarı bildirimini göster (5 saniye boyunca)
+                showNotification('global-success-container', successMessage, 5000);
+
+                if (window.history.replaceState) {
+                     const cleanURL = window.location.pathname + window.location.search.replace(/[\?&]success=[^&]+/, '').replace(/^&/, '?');
+                     window.history.replaceState({path: cleanURL}, '', cleanURL);
+                }
+            }
+        });
+
+        // --- Modal Kontrol Fonksiyonları ---
+        const logoutModal = document.getElementById('logoutConfirmModal');
+        const confirmLogoutButton = document.getElementById('confirm-logout-button');
+        const modalLogoutIndicator = document.getElementById('modal-logout-indicator');
+        const confirmLogoutButtonText = confirmLogoutButton?.querySelector('.button-text'); 
+
+        function showLogoutConfirmModal() {
+            if (logoutModal) {
+                logoutModal.classList.remove('hidden');
+            }
+        }
+
+        function hideLogoutConfirmModal() {
+            if (logoutModal) {
+                logoutModal.classList.add('hidden');
+                if(modalLogoutIndicator) modalLogoutIndicator.classList.add('hidden');
+                if(confirmLogoutButton) confirmLogoutButton.disabled = false;
+                if(confirmLogoutButtonText) confirmLogoutButtonText.textContent = 'Oturumu Kapat'; 
+            }
+        }
+
+        function confirmLogout() {
+            // Butonu devre dışı bırak ve yükleme göstergesini göster
+            if(confirmLogoutButton) confirmLogoutButton.disabled = true;
+            if(modalLogoutIndicator) modalLogoutIndicator.classList.remove('hidden');
+            if(confirmLogoutButtonText) confirmLogoutButtonText.textContent = 'Çıkış Yapılıyor...';
+
+            htmx.ajax('POST', '/api/v1/logout', {
+            }).then(data => {
+                window.location.href = '/?success=logout_ok';
+            }).catch(error => {
+                console.error("Oturum kapatma başarısız:", error);
+                showNotification('global-error-container', 'Oturum kapatılamadı. Lütfen tekrar deneyin.');
+                hideLogoutConfirmModal();
+            });
+        }
+
+    </script>
 
 </body>
 
-<script src="/static/js/wave.js"></script>
-<script src="https://unpkg.com/htmx.org@2.0.4"></script>
-<script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
 </html>
 {{ end }}
