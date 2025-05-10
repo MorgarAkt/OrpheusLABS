@@ -1,37 +1,103 @@
 {{ define "music/detail.html" }}
 {{ template "layouts/base.html:top" . }}
-{{ template "partials/navbar.html" . }}
+{{ template "partials/navbar.html" . }} {{/* .auth ve .username ana context'ten gelir */}}
 
-<div class="container max-h-[calc(100vh-7rem)] px-4 py-8 pt-28 z-10 overflow-y-auto text-2xl mx-auto flex justify-center">
-    <div class="w-full max-w-4xl"> 
+<div
+    class="container max-h-[calc(100vh-7rem)] px-4 py-8 pt-28 z-10 overflow-y-auto text-custom-text mx-auto flex justify-center">
+    <div class="w-full max-w-4xl">
 
+        {{/* .Music context'i (musicDataForTemplate) IsDetailPageContext, Mp3Url, vb. içerir */}}
         {{ template "partials/music_player.html" .Music }}
 
-        {{/* Opsiyonel: Müzikle ilgili ek detaylar buraya eklenebilir */}}
-        <div class="mt-8 p-6 bg-white rounded-lg shadow-md text-base font-normal font-sans text-custom-text">
-            <h3 class="text-xl font-semibold mb-4">Track Details</h3>
-            <div class="grid grid-cols-2 gap-4">
+        <div class="mt-8 p-6 bg-white rounded-lg shadow-md text-base font-normal font-sans">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="text-2xl font-bold text-custom-primary">{{ .Music.Title }}</h3>
+                    <p class="text-md text-gray-600">by
+                        {{ if .Music.Creator }}
+                        <span class="font-semibold">{{ .Music.Creator }}</span>
+                        {{ else }}
+                        <span class="font-semibold">Anonymous</span>
+                        {{ end }}
+                    </p>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    {{/* Paylaş Butonu */}}
+                    {{ if .Music.IsPublic }}
+                    <button onclick="shareMusic('{{ .Music.ID }}')" title="Share this music"
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-600 hover:text-custom-primary transition-colors focus:outline-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                    </button>
+                    {{ else if .Music.IsOwner }} {{/* Sahibi ise ve private ise farklı mesaj */}}
+                    <button
+                        onclick="htmx.trigger('#global-info-container', 'showNotification', { detail: { message: 'Make this music public to get a shareable link.', type: 'info' } });"
+                        title="Make public to share"
+                        class="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-orange-500 transition-colors focus:outline-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                            <line x1="12" y1="2" x2="12" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="19.78" y2="4.22"></line>
+                        </svg>
+                    </button>
+                    {{ end }}
+
+                    {{/* Beğeni Butonu Alanı (ID'yi music_handler.go'daki gibi dinamik yap) */}}
+                    {{/* _like_button_partial.html .ID, .LikesCount, .HasLiked ve $.Auth bekler */}}
+                    {{/* .Music objesi bunları içermeli, $.Auth da ana context'ten gelmeli */}}
+                    <span id="like-section-{{.Music.ID}}" class="flex items-center space-x-1">
+                        {{ template "partials/_like_button_partial.html" .Music }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 mb-6 text-lg">
                 <p><strong>Genre:</strong> {{ .Music.MusicType }}</p>
                 <p><strong>Model:</strong> {{ .Music.ModelType }}</p>
-                <p><strong>Creator:</strong>
-                    {{ if .Music.Creator }}
-                         {{/* TODO: Creator profiline link eklenebilir */}}
-                        {{ .Music.Creator }}
-                    {{ else }}
-                        Anonymous
-                    {{ end }}
-                </p>
                 <p><strong>Year:</strong> {{ .Music.CreationYear }}</p>
-                <p><strong>Visibility:</strong> {{ if .Music.IsPublic }}Public{{ else }}Private{{ end }}</p>
-                {{/* Diğer detaylar (Likes, Listens vb.) eklenebilir */}}
-                {{/* <p><strong>Likes:</strong> {{ .Music.Likes }}</p> */}}
-                {{/* <p><strong>Listens:</strong> {{ .Music.Listens }}</p> */}}
-            </div>
-             {{/* TODO: Yorumlar, Paylaşım Butonları vb. buraya eklenebilir */}}
-        </div>
+                <p><strong>Listens:</strong> {{if .Music.ListensCount}}{{.Music.ListensCount}}{{else}}0{{end}}</p>
 
+                {{if .Music.IsOwner}}
+                <div class="md:col-span-2 mt-2">
+                    <span class="font-bold">Visibility:</span>
+                    {{/* _visibility_toggle_partial.html .MusicID, .IsPublic, .IsOwner bekler */}}
+                    <span id="visibility-status-{{.Music.ID}}">
+                        {{ template "partials/_visibility_toggle_partial.html" .Music }}
+                    </span>
+                </div>
+                {{else}}
+                <p><strong>Visibility:</strong> {{ if .Music.IsPublic }}Public{{ else }}Private{{ end }}</p>
+                {{end}}
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+    function shareMusic(musicId) {
+        const url = `${window.location.origin}/musics/${musicId}`; // Dinamik URL oluştur
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function () {
+                htmx.trigger('#global-success-container', 'showNotification', { detail: { message: 'Music link copied to clipboard!' } });
+            }, function (err) {
+                console.error('Could not copy text: ', err);
+                // Fallback: Kullanıcıya URL'i gösterme
+                htmx.trigger('#global-error-container', 'showNotification', { detail: { message: `Failed to copy. Link: ${url}` } });
+            });
+        } else {
+            // Clipboard API desteklenmiyorsa (eski tarayıcılar, http vb.)
+            prompt("Copy this link:", url); // Basit bir prompt ile göster
+        }
+    }
+</script>
 
 {{ template "layouts/base.html:bottom" . }}
 {{ end }}

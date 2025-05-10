@@ -78,17 +78,37 @@ func minInt64(a, b int64) int64 {
 	return b
 }
 
-func (h *FrontendHandler) preparePaginationData(c *gin.Context, musicList []models.Music, totalItems int64, page int, perPage int, viewPath string, currentQuery url.Values) ([]gin.H, gin.H) {
+func (h *FrontendHandler) preparePaginationData(
+	c *gin.Context,
+	musicList []models.Music,
+	totalItems int64,
+	page int,
+	perPage int,
+	viewPath string,
+	currentQuery url.Values,
+	isAuthenticated bool,
+	requestingUserID uuid.UUID,
+) ([]gin.H, gin.H) {
 	formattedMusic := []gin.H{}
 	for _, m := range musicList {
-		creatorUsername := "Anonymous"
-		// User ilişkisinin yüklendiğinden emin olun (GORM Preload ile)
-		if m.User.ID != uuid.Nil && m.User.Username != "" { // UserID'nin kendisi nil olabilir, bu yüzden User objesini kontrol et
-			creatorUsername = m.User.Username
-		} else if m.UserID != nil { // Eğer UserID var ama User objesi yüklenmemişse (bu durum olmamalı)
-			// İsteğe bağlı: log.Printf("Warning: User object not preloaded for music ID %s, UserID: %s", m.ID, *m.UserID)
+		hasLiked := false
+		if isAuthenticated && requestingUserID != uuid.Nil {
+			var errLikeCheck error
+			hasLiked, errLikeCheck = h.repo.UserLikes.HasUserLiked(requestingUserID, m.ID)
+			if errLikeCheck != nil {
+				log.Printf("Error checking like status for music %s, user %s: %v", m.ID, requestingUserID, errLikeCheck)
+			}
 		}
 
+		isOwner := false
+		if isAuthenticated && m.UserID != nil && *m.UserID == requestingUserID {
+			isOwner = true
+		}
+
+		creatorUsername := "Anonymous"
+		if m.User.ID != uuid.Nil && m.User.Username != "" {
+			creatorUsername = m.User.Username
+		}
 		musicTypeName := "Unknown"
 		if m.MusicType.ID != uuid.Nil && m.MusicType.Name != "" {
 			musicTypeName = m.MusicType.Name
@@ -97,14 +117,13 @@ func (h *FrontendHandler) preparePaginationData(c *gin.Context, musicList []mode
 		if m.ModelType.ID != uuid.Nil && m.ModelType.Name != "" {
 			modelTypeName = m.ModelType.Name
 		}
-
 		coverArtPath := m.CoverArtPath
 		if coverArtPath == "" {
 			coverArtPath = "/static/images/placeholder_cover.png"
 		}
 		title := m.Title
 		if title == "" {
-			title = "Untitled Generation" // veya "Untitled Track"
+			title = "Untitled Track"
 		}
 
 		formattedMusic = append(formattedMusic, gin.H{
@@ -114,64 +133,63 @@ func (h *FrontendHandler) preparePaginationData(c *gin.Context, musicList []mode
 			"MusicType":    musicTypeName,
 			"ModelType":    modelTypeName,
 			"CreationYear": m.CreatedAt.Year(),
-			"Mp3FilePath":  m.Mp3FilePath,
-			"MidiFilePath": m.MidiFilePath,
+			"Mp3FilePath":  m.Mp3FilePath,  // Kartta play butonu için
+			"MidiFilePath": m.MidiFilePath, // Kartta indirme için
 			"CoverArtPath": coverArtPath,
-			"IsFavorite":   false, // Varsayılan, bu özellik implemente edilmedi
+			"LikesCount":   m.LikesCount,
+			"HasLiked":     hasLiked,
+			"IsOwner":      isOwner,    // YENİ EKLENDİ
+			"IsPublic":     m.IsPublic, // _visibility_toggle_partial için kartta da gerekebilir
 		})
 	}
 
+	// ... (Sayfalama hesaplamaları (totalPages, pageNumbers, linkParams, startItem, endItem) aynı kalır)
+	// Bir önceki yanıttaki gibi devam eder...
 	totalPages := 0
 	if totalItems > 0 && perPage > 0 {
 		totalPages = int(math.Ceil(float64(totalItems) / float64(perPage)))
 	}
-
-	// Sayfa numarasının geçerli aralıkta olduğundan emin ol
 	if page > totalPages && totalPages > 0 {
 		page = totalPages
 	}
-	if page < 1 && totalItems > 0 { // Eğer öğe varsa ve sayfa 1'den küçükse, 1 yap
+	if page < 1 && totalItems > 0 {
 		page = 1
 	}
-	if totalItems == 0 { // Hiç öğe yoksa
+	if totalItems == 0 {
 		page = 1
 		totalPages = 0
 	}
 
 	pageNumbers := []int{}
-	maxPagesToShow := 5 // Ekranda gösterilecek maksimum sayfa sayısı linki
+	maxPagesToShow := 5
 	if totalPages > 0 {
 		if totalPages <= maxPagesToShow {
 			for i := 1; i <= totalPages; i++ {
 				pageNumbers = append(pageNumbers, i)
 			}
 		} else {
-			startPage := page - (maxPagesToShow / 2)
-			endPage := page + (maxPagesToShow / 2) - 1 // Eğer maxPagesToShow tek ise -1, çift ise olduğu gibi kalır
-			if maxPagesToShow%2 == 0 {                 // Eğer çiftse
-				endPage = page + (maxPagesToShow / 2) - 1
-			} else { // Eğer tekse
-				endPage = page + (maxPagesToShow / 2)
+			startP := page - (maxPagesToShow / 2)
+			endP := page + (maxPagesToShow / 2)
+			if maxPagesToShow%2 == 0 {
+				endP--
 			}
-
-			if startPage < 1 {
-				endPage = endPage + (1 - startPage)
-				startPage = 1
+			if startP < 1 {
+				endP += (1 - startP)
+				startP = 1
 			}
-			if endPage > totalPages {
-				startPage = startPage - (endPage - totalPages)
-				endPage = totalPages
+			if endP > totalPages {
+				startP -= (endP - totalPages)
+				endP = totalPages
 			}
-			if startPage < 1 { // startPage'in 1'den küçük olmamasını sağla
-				startPage = 1
+			if startP < 1 {
+				startP = 1
 			}
-			for i := startPage; i <= endPage; i++ {
+			for i := startP; i <= endP; i++ {
 				pageNumbers = append(pageNumbers, i)
 			}
 		}
 	}
 
-	// Sayfalama linkleri için query parametrelerini oluştur (page ve per_page hariç, onlar linkte direkt ayarlanacak)
 	linkParams := url.Values{}
 	if qVal := currentQuery.Get("q"); qVal != "" {
 		linkParams.Set("q", qVal)
@@ -182,7 +200,7 @@ func (h *FrontendHandler) preparePaginationData(c *gin.Context, musicList []mode
 	if sortVal := currentQuery.Get("sort"); sortVal != "" {
 		linkParams.Set("sort", sortVal)
 	}
-	linkParams.Set("per_page", strconv.Itoa(perPage)) // per_page'i linklere dahil et
+	linkParams.Set("per_page", strconv.Itoa(perPage))
 	linkQueryString := linkParams.Encode()
 
 	var startItem, endItem int64
@@ -204,21 +222,20 @@ func (h *FrontendHandler) preparePaginationData(c *gin.Context, musicList []mode
 		"PrevPage":        page - 1,
 		"NextPage":        page + 1,
 		"Pages":           pageNumbers,
-		"SearchQuery":     currentQuery.Get("q"), // template'de göstermek için
+		"SearchQuery":     currentQuery.Get("q"),
 		"MusicTypeFilter": currentQuery.Get("musictype"),
 		"SortBy":          currentQuery.Get("sort"),
-		"BaseLink":        viewPath,        // örn: /library veya /explore
-		"LinkQuery":       linkQueryString, // örn: q=foo&musictype=bar&per_page=4 (page hariç)
+		"BaseLink":        viewPath,
+		"LinkQuery":       linkQueryString,
 		"StartItem":       startItem,
 		"EndItem":         endItem,
 	}
-
 	return formattedMusic, pagination
 }
 
-func (h *FrontendHandler) GetMusicsLibrary(c *gin.Context) { // API endpoint for HTMX
-	userID, _, auth := middleware.GetUserInfoFromContext(c)
-	if !auth {
+func (h *FrontendHandler) GetMusicsLibrary(c *gin.Context) {
+	userID, _, isAuthenticated := middleware.GetUserInfoFromContext(c) // Auth bilgisini de al
+	if !isAuthenticated {                                              // Auth bilgisini kontrol et
 		c.Header("HX-Trigger", `{"showNotification": {"type": "error", "message": "Please log in to view your library."}}`)
 		c.Status(http.StatusUnauthorized)
 		return
@@ -228,8 +245,7 @@ func (h *FrontendHandler) GetMusicsLibrary(c *gin.Context) { // API endpoint for
 	if page < 1 {
 		page = 1
 	}
-	// config'den veya sabit değerlerden al
-	perPage := getPerPageFromQueryOrDefault(c, h.cfg.DefaultPerPage, h.cfg.MinPerPage, h.cfg.MaxPerPage) // Örnek: 4, 1, 20
+	perPage := getPerPageFromQueryOrDefault(c, h.cfg.DefaultPerPage, h.cfg.MinPerPage, h.cfg.MaxPerPage)
 
 	queryParams := repository.MusicQueryParams{
 		SearchQuery:     c.Query("q"),
@@ -248,31 +264,24 @@ func (h *FrontendHandler) GetMusicsLibrary(c *gin.Context) { // API endpoint for
 	}
 
 	viewPath := "/library"
-	// Tarayıcı URL'ini oluşturmak için tüm geçerli parametreleri kullan
-	pushedURLValues := url.Values{}
-	pushedURLValues.Set("page", strconv.Itoa(page))
-	if val := c.Query("q"); val != "" {
-		pushedURLValues.Set("q", val)
-	}
-	if val := c.Query("musictype"); val != "" {
-		pushedURLValues.Set("musictype", val)
-	}
-	if val := c.Query("sort"); val != "" {
-		pushedURLValues.Set("sort", val)
-	}
-	pushedURLValues.Set("per_page", strconv.Itoa(perPage))
+	pushedURLValues := c.Request.URL.Query()               // Gelen tüm query parametrelerini al
+	pushedURLValues.Set("page", strconv.Itoa(page))        // Sayfayı güncelle/ekle
+	pushedURLValues.Set("per_page", strconv.Itoa(perPage)) // per_page'i de URL'e ekle
 	c.Header("HX-Push-Url", viewPath+"?"+pushedURLValues.Encode())
 
-	// Mevcut isteğin query parametrelerini preparePaginationData'ya gönder
-	musicsGinH, paginationData := h.preparePaginationData(c, musicList, totalItems, page, perPage, viewPath, c.Request.URL.Query())
+	musicsGinH, paginationData := h.preparePaginationData(c, musicList, totalItems, page, perPage, viewPath, c.Request.URL.Query(), isAuthenticated, userID)
 
 	c.HTML(http.StatusOK, "partials/musics-pagination.html", gin.H{
 		"Music":      musicsGinH,
 		"Pagination": paginationData,
+		"Auth":       isAuthenticated, // Auth bilgisini partial'a gönder
 	})
 }
 
-func (h *FrontendHandler) GetExploreMusicData(c *gin.Context) { // API endpoint for HTMX
+// GetExploreMusicData API Handler'ını güncelle
+func (h *FrontendHandler) GetExploreMusicData(c *gin.Context) {
+	requestingUserID, _, isAuthenticated := middleware.GetUserInfoFromContext(c) // Beğeni durumu için kullanıcı ID'si ve Auth durumu
+
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if page < 1 {
 		page = 1
@@ -296,32 +305,24 @@ func (h *FrontendHandler) GetExploreMusicData(c *gin.Context) { // API endpoint 
 	}
 
 	viewPath := "/explore"
-	pushedURLValues := url.Values{}
+	pushedURLValues := c.Request.URL.Query()
 	pushedURLValues.Set("page", strconv.Itoa(page))
-	if val := c.Query("q"); val != "" {
-		pushedURLValues.Set("q", val)
-	}
-	if val := c.Query("musictype"); val != "" {
-		pushedURLValues.Set("musictype", val)
-	}
-	if val := c.Query("sort"); val != "" {
-		pushedURLValues.Set("sort", val)
-	}
 	pushedURLValues.Set("per_page", strconv.Itoa(perPage))
 	c.Header("HX-Push-Url", viewPath+"?"+pushedURLValues.Encode())
 
-	musicsGinH, paginationData := h.preparePaginationData(c, musicList, totalItems, page, perPage, viewPath, c.Request.URL.Query())
+	musicsGinH, paginationData := h.preparePaginationData(c, musicList, totalItems, page, perPage, viewPath, c.Request.URL.Query(), isAuthenticated, requestingUserID)
 
 	c.HTML(http.StatusOK, "partials/musics-pagination.html", gin.H{
 		"Music":      musicsGinH,
 		"Pagination": paginationData,
+		"Auth":       isAuthenticated, // Auth bilgisini partial'a gönder
 	})
 }
 
-// Library ana sayfa yüklemesi
+// Library ve Explore ana sayfa handler'larını da Auth bilgisini ve userID'yi preparePaginationData'ya geçecek şekilde güncelle
 func (h *FrontendHandler) Library(c *gin.Context) {
-	userID, username, auth := middleware.GetUserInfoFromContext(c)
-	if !auth {
+	userID, username, isAuthenticated := middleware.GetUserInfoFromContext(c)
+	if !isAuthenticated {
 		c.Redirect(http.StatusSeeOther, "/login?redirect=/library")
 		return
 	}
@@ -332,11 +333,7 @@ func (h *FrontendHandler) Library(c *gin.Context) {
 	}
 	perPage := getPerPageFromQueryOrDefault(c, h.cfg.DefaultPerPage, h.cfg.MinPerPage, h.cfg.MaxPerPage)
 
-	musicTypes, err := h.repo.MusicType.GetAll()
-	if err != nil {
-		log.Printf("Error fetching music types for Library page: %v", err)
-		// Hata durumu ele alınabilir
-	}
+	musicTypes, _ := h.repo.MusicType.GetAll()
 
 	queryParams := repository.MusicQueryParams{
 		SearchQuery:     c.Query("q"),
@@ -352,23 +349,22 @@ func (h *FrontendHandler) Library(c *gin.Context) {
 		return
 	}
 
-	musicsGinH, paginationData := h.preparePaginationData(c, musicList, totalItems, page, perPage, "/library", c.Request.URL.Query())
+	musicsGinH, paginationData := h.preparePaginationData(c, musicList, totalItems, page, perPage, "/library", c.Request.URL.Query(), isAuthenticated, userID)
 
 	c.HTML(http.StatusOK, "music/library.html", gin.H{
 		"title":          "Your Music Library - Aurify",
-		"auth":           auth,
+		"auth":           isAuthenticated,
 		"username":       username,
-		"MusicType":      musicTypes,      // Filtreler için
-		"Music":          musicsGinH,      // İlk müzik listesi
-		"Pagination":     paginationData,  // İlk pagination durumu
-		"HXGetURL":       "/api/v1/music", // Filtrelerin AJAX istekleri için API endpoint'i
-		"InitialPerPage": perPage,         // JS'in kullanması için
+		"MusicType":      musicTypes,
+		"Music":          musicsGinH,
+		"Pagination":     paginationData,
+		"HXGetURL":       "/api/v1/music",
+		"InitialPerPage": perPage,
 	})
 }
 
-// Explore ana sayfa yüklemesi
 func (h *FrontendHandler) Explore(c *gin.Context) {
-	_, username, auth := middleware.GetUserInfoFromContext(c)
+	requestingUserID, username, isAuthenticated := middleware.GetUserInfoFromContext(c)
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if page < 1 {
@@ -376,10 +372,7 @@ func (h *FrontendHandler) Explore(c *gin.Context) {
 	}
 	perPage := getPerPageFromQueryOrDefault(c, h.cfg.DefaultPerPage, h.cfg.MinPerPage, h.cfg.MaxPerPage)
 
-	musicTypes, err := h.repo.MusicType.GetAll()
-	if err != nil {
-		log.Printf("Error fetching music types for Explore page: %v", err)
-	}
+	musicTypes, _ := h.repo.MusicType.GetAll()
 
 	queryParams := repository.MusicQueryParams{
 		SearchQuery:     c.Query("q"),
@@ -395,16 +388,16 @@ func (h *FrontendHandler) Explore(c *gin.Context) {
 		return
 	}
 
-	musicsGinH, paginationData := h.preparePaginationData(c, musicList, totalItems, page, perPage, "/explore", c.Request.URL.Query())
+	musicsGinH, paginationData := h.preparePaginationData(c, musicList, totalItems, page, perPage, "/explore", c.Request.URL.Query(), isAuthenticated, requestingUserID)
 
 	c.HTML(http.StatusOK, "music/explore.html", gin.H{
 		"title":          "Explore Music - Aurify",
-		"auth":           auth,
+		"auth":           isAuthenticated,
 		"username":       username,
 		"MusicType":      musicTypes,
 		"Music":          musicsGinH,
 		"Pagination":     paginationData,
-		"HXGetURL":       "/api/v1/explore-music-data", // Filtrelerin AJAX istekleri için API endpoint'i
+		"HXGetURL":       "/api/v1/explore-music-data",
 		"InitialPerPage": perPage,
 	})
 }

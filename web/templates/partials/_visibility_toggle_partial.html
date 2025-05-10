@@ -1,0 +1,16 @@
+{{ define "partials/_visibility_toggle_partial.html" }}
+{{/* .MusicID, .IsPublic, .IsOwner bu partial'a gönderilmeli */}}
+<span class="ml-2 px-3 py-1 rounded-md text-sm font-medium
+    {{if .IsPublic}} bg-green-100 text-green-700 {{else}} bg-yellow-100 text-yellow-700 {{end}}">
+    {{if .IsPublic}}Public{{else}}Private{{end}}
+</span>
+{{if .IsOwner}}
+<button hx-put="/api/v1/music/{{.MusicID}}/visibility" {{/* Sadece PUT isteği, body'de veri yok */}}
+        hx-target="#visibility-status-{{.MusicID}}"
+        hx-swap="innerHTML"
+        {{/* hx-ext="json-enc" kaldırıldı veya hx-vals ile basit bir şey gönderilebilir */}}
+        class="ml-3 px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 transition-colors">
+    Change to {{if .IsPublic}}Private{{else}}Public{{end}}
+</button>
+{{end}}
+{{ end }}

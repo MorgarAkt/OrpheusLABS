@@ -7,6 +7,7 @@ type Repository struct {
 	Music     MusicRepository
 	MusicType MusicTypeRepository
 	ModelType ModelTypeRepository
+	UserLikes UserLikesRepository
 }
 
 func NewRepository(db *gorm.DB) *Repository {
@@ -15,5 +16,6 @@ func NewRepository(db *gorm.DB) *Repository {
 		Music:     NewMusicRepository(db),
 		MusicType: NewMusicTypeRepository(db),
 		ModelType: NewModelTypeRepository(db),
+		UserLikes: NewUserLikesRepository(db),
 	}
 }

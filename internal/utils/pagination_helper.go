@@ -93,7 +93,6 @@ func GetPaginatedMusic(musicList []models.Music, page int, perPage int, searchQu
 			"MidiFilePath": music.MidiFilePath,
 			"CoverArtPath": coverArt,
 			"Likes":        music.LikesCount,
-			"Listens":      music.ListensCount,
 			"IsPublic":     music.IsPublic,
 			// "IsOwner": music.UserID != nil && *music.UserID == targetUserID, // Gerekirse eklenebilir
 		})

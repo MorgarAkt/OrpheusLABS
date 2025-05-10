@@ -1,14 +1,17 @@
 package repository
 
 import (
-	"strings" // strings.ToLower vb. için
+	"fmt"
+	"log"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/morgarakt/aurify/internal/models" // Projenizin model yolu
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-// MusicQueryParams veritabanı sorguları için parametreleri taşır
+// MusicQueryParams struct (önceki yanıttaki gibi)
 type MusicQueryParams struct {
 	SearchQuery     string
 	MusicTypeFilter string
@@ -17,17 +20,17 @@ type MusicQueryParams struct {
 	PerPage         int
 }
 
-// MusicRepository arayüzü güncellendi
+// MusicRepository arayüzü (önceki yanıttaki gibi)
 type MusicRepository interface {
 	Create(music *models.Music) error
 	Delete(music *models.Music) error
-	GetByID(id any, music *models.Music) error // Bu generic kalabilir
+	GetByID(id any, music *models.Music) error
 	GetByIDWithRelations(id uuid.UUID) (*models.Music, error)
 	Update(music *models.Music) error
-
-	// Filtreleme, sıralama ve sayfalama için yeni metodlar
 	QueryUserMusic(userID uuid.UUID, params MusicQueryParams) ([]models.Music, int64, error)
 	QueryPublicMusic(params MusicQueryParams) ([]models.Music, int64, error)
+	UpdateLikesCount(musicID uuid.UUID, change int) error
+	UpdateVisibility(musicID uuid.UUID, isPublic bool) error
 }
 
 type musicRepo struct {
@@ -42,11 +45,17 @@ func NewMusicRepository(db *gorm.DB) MusicRepository {
 	}
 }
 
-// GetByIDWithRelations ve Update metodları (varsa) aynı kalır.
-// Örnek:
+func (r *musicRepo) Create(music *models.Music) error {
+	return r.db.Create(music).Error
+}
+
+func (r *musicRepo) Delete(music *models.Music) error {
+	return r.db.Delete(music).Error
+}
+
 func (r *musicRepo) GetByIDWithRelations(id uuid.UUID) (*models.Music, error) {
 	var music models.Music
-	err := r.db.Preload("User").Preload("MusicType").Preload("ModelType").First(&music, id).Error
+	err := r.db.Preload("User").Preload("MusicType").Preload("ModelType").First(&music, "musics.id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -57,54 +66,68 @@ func (r *musicRepo) Update(music *models.Music) error {
 	return r.db.Save(music).Error
 }
 
+func (r *musicRepo) UpdateLikesCount(musicID uuid.UUID, change int) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var music models.Music
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&music, musicID).Error; err != nil {
+			return err
+		}
+		newLikesCount := music.LikesCount + change
+		if newLikesCount < 0 {
+			newLikesCount = 0
+		}
+		return tx.Model(&models.Music{}).Where("id = ?", musicID).Update("likes_count", newLikesCount).Error
+	})
+}
+
+func (r *musicRepo) UpdateVisibility(musicID uuid.UUID, isPublic bool) error {
+	return r.db.Model(&models.Music{}).Where("id = ?", musicID).Update("is_public", isPublic).Error
+}
+
 // QueryUserMusic kullanıcıya ait müzikleri filtreler, sıralar ve sayfalar.
-// Döndürülen değerler: bulunan müzik listesi, toplam filtrelenmiş öğe sayısı, hata.
 func (r *musicRepo) QueryUserMusic(userID uuid.UUID, params MusicQueryParams) ([]models.Music, int64, error) {
 	var musicList []models.Music
 	var totalItems int64
 
-	query := r.db.Model(&models.Music{}).
-		Joins("User"). // User.Username için (eğer User tablosunda username varsa)
-		Joins("MusicType").
-		Joins("ModelType").
-		Where("musics.user_id = ?", userID) // `musics.` ile tablo adını belirtmek belirsizliği önler
+	// Temel sorgu "musics" tablosu üzerinden başlar ve kullanıcıya göre filtrelenir.
+	baseQuery := r.db.Table("musics").Where("musics.user_id = ?", userID)
 
-	// Filtreleme
+	// JOIN'leri ekle (hem count hem de data sorgusu için gerekli olacaklar)
+	// Alias (takma ad) kullanarak tabloları ayırt et.
+	queryWithJoins := baseQuery.
+		Joins("LEFT JOIN users AS u ON u.id = musics.user_id"). // UserID nullable değilse INNER JOIN olabilir
+		Joins("LEFT JOIN music_types AS mt ON mt.id = musics.music_type_id").
+		Joins("LEFT JOIN model_types AS mdlt ON mdlt.id = musics.model_type_id")
+
+	// Filtreleme koşullarını oluştur
+	filterSession := queryWithJoins
 	if params.SearchQuery != "" {
-		lowerSearchQuery := "%" + strings.ToLower(params.SearchQuery) + "%"
-		query = query.Where(
-			r.db.Where("LOWER(musics.title) LIKE ?", lowerSearchQuery).
-				Or("LOWER(\"User\".username) LIKE ?", lowerSearchQuery). // Çift tırnak PostgreSQL'de büyük/küçük harf duyarlılığı için
-				Or("LOWER(\"MusicType\".name) LIKE ?", lowerSearchQuery),
+		sq := "%" + strings.ToLower(params.SearchQuery) + "%"
+		filterSession = filterSession.Where(
+			r.db.Where("LOWER(musics.title) LIKE ?", sq).
+				Or("LOWER(u.username) LIKE ?", sq).
+				Or("LOWER(mt.name) LIKE ?", sq),
 		)
 	}
 	if params.MusicTypeFilter != "" {
-		query = query.Where("\"MusicType\".name = ?", params.MusicTypeFilter)
+		filterSession = filterSession.Where("mt.name = ?", params.MusicTypeFilter)
 	}
 
-	// Toplam öğe sayısını almak için filtreli sorgu (sayfalama öncesi)
-	// Count sorgusunu ana sorgudan ayırmak, özellikle JOIN'ler olduğunda daha güvenilir olabilir.
-	countQuery := r.db.Model(&models.Music{}).
-		Joins("JOIN users AS \"User\" ON \"User\".id = musics.user_id").
-		Joins("JOIN music_types AS \"MusicType\" ON \"MusicType\".id = musics.music_type_id").
-		Where("musics.user_id = ?", userID)
-	if params.SearchQuery != "" {
-		lowerSearchQuery := "%" + strings.ToLower(params.SearchQuery) + "%"
-		countQuery = countQuery.Where(
-			r.db.Where("LOWER(musics.title) LIKE ?", lowerSearchQuery).
-				Or("LOWER(\"User\".username) LIKE ?", lowerSearchQuery).
-				Or("LOWER(\"MusicType\".name) LIKE ?", lowerSearchQuery),
-		)
-	}
-	if params.MusicTypeFilter != "" {
-		countQuery = countQuery.Where("\"MusicType\".name = ?", params.MusicTypeFilter)
-	}
-	if err := countQuery.Count(&totalItems).Error; err != nil {
-		return nil, 0, err
+	// Toplam öğe sayısını al
+	// SELECT count(musics.id) FROM musics ... (joinler ve where koşulları ile)
+	// Model(&models.Music{}) yerine Table("musics") kullandığımız için count için de bunu kullanalım
+	// veya Model'i burada kullanalım ama join'leri dikkatli yönetelim.
+	// En temizi, filterSession üzerinden count almak.
+	if err := filterSession.Select("count(musics.id)").Count(&totalItems).Error; err != nil {
+		log.Printf("Error in countQuery for UserMusic (User: %s): %v", userID, err)
+		// GORM'un ürettiği SQL'i görmek için:
+		// log.Printf("Failed SQL for count: %s", r.db.ToSQL(func(tx *gorm.DB) *gorm.DB { return filterSession.Select("count(musics.id)").Count(&totalItems) }))
+		return nil, 0, fmt.Errorf("counting user music failed: %w", err)
 	}
 
-	// Sıralama
-	orderClause := "musics.created_at desc" // Varsayılan (en yeni)
+	// Asıl veri çekme sorgusu için sıralama ve sayfalama ekle
+	dataSession := filterSession // Filtrelenmiş sorguyu kullan
+	orderClause := "musics.created_at desc"
 	switch params.SortBy {
 	case "added_desc":
 		orderClause = "musics.created_at desc"
@@ -112,17 +135,23 @@ func (r *musicRepo) QueryUserMusic(userID uuid.UUID, params MusicQueryParams) ([
 		orderClause = "musics.title asc"
 	case "title_desc":
 		orderClause = "musics.title desc"
-		// Gelecekte eklenebilecek diğer sıralama seçenekleri
 	}
-	query = query.Order(orderClause)
+	dataSession = dataSession.Order(orderClause)
 
-	// Sayfalama
 	offset := (params.Page - 1) * params.PerPage
-	query = query.Offset(offset).Limit(params.PerPage)
+	// Veriyi çekerken Preload ile ilişkili modelleri de yükle.
+	// GORM, ana sorgudaki JOIN'leri ve Preload'ları akıllıca birleştirmeye çalışır.
+	// Veya Preload için ayrı sorgular yapar.
+	// Burada musics.* seçerek ve sonra Preload yaparak daha temiz olabilir.
+	err := dataSession.Select("musics.*").
+		Offset(offset).Limit(params.PerPage).
+		Preload("User").Preload("MusicType").Preload("ModelType").
+		Find(&musicList).Error
 
-	// İlişkileri Preload ile yükle (JOIN'ler zaten yapıldıysa bazıları gerekmeyebilir, ama GORM yönetir)
-	if err := query.Find(&musicList).Error; err != nil {
-		return nil, 0, err
+	if err != nil {
+		log.Printf("Error in dataQuery for UserMusic (User: %s): %v", userID, err)
+		// log.Printf("Failed SQL for data: %s", r.db.ToSQL(func(tx *gorm.DB) *gorm.DB { return dataSession.Select("musics.*").Offset(offset).Limit(params.PerPage).Preload("User").Preload("MusicType").Preload("ModelType").Find(&musicList) }))
+		return nil, 0, fmt.Errorf("finding user music failed: %w", err)
 	}
 
 	return musicList, totalItems, nil
@@ -133,45 +162,32 @@ func (r *musicRepo) QueryPublicMusic(params MusicQueryParams) ([]models.Music, i
 	var musicList []models.Music
 	var totalItems int64
 
-	query := r.db.Model(&models.Music{}).
-		Joins("User").
-		Joins("MusicType").
-		Joins("ModelType").
-		Where("musics.is_public = ?", true)
+	baseQuery := r.db.Table("musics").Where("musics.is_public = ?", true)
 
-	// Filtreleme
+	queryWithJoins := baseQuery.
+		Joins("LEFT JOIN users AS u ON u.id = musics.user_id"). // UserID nullable olduğu için LEFT JOIN
+		Joins("LEFT JOIN music_types AS mt ON mt.id = musics.music_type_id").
+		Joins("LEFT JOIN model_types AS mdlt ON mdlt.id = musics.model_type_id")
+
+	filterSession := queryWithJoins
 	if params.SearchQuery != "" {
-		lowerSearchQuery := "%" + strings.ToLower(params.SearchQuery) + "%"
-		query = query.Where(
-			r.db.Where("LOWER(musics.title) LIKE ?", lowerSearchQuery).
-				Or("LOWER(\"User\".username) LIKE ?", lowerSearchQuery).
-				Or("LOWER(\"MusicType\".name) LIKE ?", lowerSearchQuery),
+		sq := "%" + strings.ToLower(params.SearchQuery) + "%"
+		filterSession = filterSession.Where(
+			r.db.Where("LOWER(musics.title) LIKE ?", sq).
+				Or("LOWER(u.username) LIKE ?", sq). // u.username nil olabilir, sorgu bunu handle etmeli
+				Or("LOWER(mt.name) LIKE ?", sq),
 		)
 	}
 	if params.MusicTypeFilter != "" {
-		query = query.Where("\"MusicType\".name = ?", params.MusicTypeFilter)
+		filterSession = filterSession.Where("mt.name = ?", params.MusicTypeFilter)
 	}
 
-	countQuery := r.db.Model(&models.Music{}).
-		Joins("JOIN users AS \"User\" ON \"User\".id = musics.user_id"). // UserID nullable olduğu için LEFT JOIN daha uygun olabilir
-		Joins("JOIN music_types AS \"MusicType\" ON \"MusicType\".id = musics.music_type_id").
-		Where("musics.is_public = ?", true)
-	if params.SearchQuery != "" {
-		lowerSearchQuery := "%" + strings.ToLower(params.SearchQuery) + "%"
-		countQuery = countQuery.Where(
-			r.db.Where("LOWER(musics.title) LIKE ?", lowerSearchQuery).
-				Or("LOWER(\"User\".username) LIKE ?", lowerSearchQuery).
-				Or("LOWER(\"MusicType\".name) LIKE ?", lowerSearchQuery),
-		)
-	}
-	if params.MusicTypeFilter != "" {
-		countQuery = countQuery.Where("\"MusicType\".name = ?", params.MusicTypeFilter)
-	}
-	if err := countQuery.Count(&totalItems).Error; err != nil {
-		return nil, 0, err
+	if err := filterSession.Select("count(musics.id)").Count(&totalItems).Error; err != nil {
+		log.Printf("Error in countQuery for PublicMusic: %v", err)
+		return nil, 0, fmt.Errorf("counting public music failed: %w", err)
 	}
 
-	// Sıralama
+	dataSession := filterSession
 	orderClause := "musics.created_at desc"
 	switch params.SortBy {
 	case "added_desc":
@@ -181,14 +197,18 @@ func (r *musicRepo) QueryPublicMusic(params MusicQueryParams) ([]models.Music, i
 	case "title_desc":
 		orderClause = "musics.title desc"
 	}
-	query = query.Order(orderClause)
+	dataSession = dataSession.Order(orderClause)
 
-	// Sayfalama
 	offset := (params.Page - 1) * params.PerPage
-	query = query.Offset(offset).Limit(params.PerPage)
+	err := dataSession.Select("musics.*").
+		Offset(offset).Limit(params.PerPage).
+		Preload("User").Preload("MusicType").Preload("ModelType").
+		Find(&musicList).Error
 
-	if err := query.Find(&musicList).Error; err != nil {
-		return nil, 0, err
+	if err != nil {
+		log.Printf("Error in dataQuery for PublicMusic: %v", err)
+		return nil, 0, fmt.Errorf("finding public music failed: %w", err)
 	}
+
 	return musicList, totalItems, nil
 }

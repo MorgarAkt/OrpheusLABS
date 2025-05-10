@@ -1,7 +1,9 @@
+
 {{ define "partials/music_player.html" }}
+{{/* Context (.): Mp3Url, MidiUrl, CoverArtPath, GeneratedTitle, MusicID, MusicType, ModelType, Auth, Username, IsPublic, CurrentURLPath?, IsDetailPageContext? */}}
 <div id="musicPlayer" class="text-custom-text z-50 bg-white rounded-lg shadow-xl overflow-hidden flex items-center p-8 md:p-14">
     <div class="flex-shrink-0 md:h-56 md:w-auto mr-8 md:mr-12">
-         <img src="{{.CoverArtPath }}"
+         <img src="{{if .CoverArtPath}}{{.CoverArtPath}}{{else}}/static/images/placeholder_cover.png{{end}}"
              alt="Album Art for {{.GeneratedTitle}}"
              class="w-full h-full object-cover rounded-md shadow-md"
              onerror="this.onerror=null; this.src='/static/images/placeholder_cover.png';">
@@ -9,8 +11,7 @@
 
     <div class="flex-grow">
         <div class="flex justify-between items-center mb-4">
-            {{/* --- Başlık Düzenleme Alanı --- */}}
-            <div id="music-title-display-{{.MusicID}}" class="flex-grow mr-2"> {{/* Kapsayıcı div */}}
+            <div id="music-title-display-{{.MusicID}}" class="flex-grow mr-2">
                 <h2 id="title-text-{{.MusicID}}"
                     class="text-2xl md:text-3xl font-bold truncate hover:text-custom-primary hover:cursor-pointer"
                     title="{{.GeneratedTitle}}"
@@ -20,12 +21,14 @@
                     {{.GeneratedTitle}}
                 </h2>
             </div>
+            {{ if not .IsDetailPageContext }}
             <button onclick="closePlayer()" class="text-2xl md:text-3xl focus:outline-none text-gray-500 hover:text-gray-700 ml-4" aria-label="Close Player">
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
+            {{ end }}
         </div>
 
-        {{/* ... Progress Bar ... */}}
+        {{/* ... Progress Bar ve Kontrol Butonları aynı kalır ... */}}
         <div class="mb-6">
             <div class="flex items-center justify-between text-lg text-gray-600 mb-2">
                 <span id="currentTime" class="text-xl">0:00</span>
@@ -37,9 +40,8 @@
             </div>
         </div>
 
-        {{/* ... Kontrol Butonları ... */}}
         <div class="flex items-center justify-center space-x-8 mb-8 text-custom-primary">
-             <button class="p-3 focus:outline-none transition-colors hover:text-custom-secondary" id="prevButton" aria-label="Previous Track">
+             <button class="p-3 focus:outline-none transition-colors hover:text-custom-secondary" id="prevButton" aria-label="Previous Track" disabled>
                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>
              </button>
              {{ if .Mp3Url }}
@@ -50,14 +52,13 @@
              {{ else }}
              <div class="text-red-500 text-2xl text-center p-4">MP3 audio not available.</div>
              {{ end }}
-            <button class="p-3 focus:outline-none transition-colors hover:text-custom-secondary" id="nextButton" aria-label="Next Track">
+            <button class="p-3 focus:outline-none transition-colors hover:text-custom-secondary" id="nextButton" aria-label="Next Track" disabled>
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
             </button>
         </div>
 
-        {{/* İndirme ve Kaydetme Linkleri/Butonları */}}
+
         <div class="flex justify-center items-center space-x-8 text-xl text-gray-600">
-            {{/* İndirme Linkleri */}}
             {{ if .Mp3Url }}
             <a href="{{.Mp3Url}}" download="{{.GeneratedTitle}}.mp3" class="flex items-center hover:text-custom-primary text-lg transition-colors p-2" title="Download MP3">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> MP3
@@ -69,15 +70,15 @@
             </a>
             {{ end }}
 
-            {{/* Kaydetme Butonu (Güncellendi) */}}
-            {{ if and .Auth .MusicID }} {{/* Sadece giriş yapmışsa ve MusicID varsa göster */}}
+            {{ if and .Auth .MusicID }}
             <button hx-post="/api/v1/save-music"
                     hx-ext="json-enc"
-                    {{/* hx-vals'a music_id eklendi */}}
-                    hx-vals='{{ printf `{"music_id": "%s", "title": "%s", "mp3_file_path": "%s", "midi_file_path": "%s", "music_type": "%s", "model_type": "%s", "is_public": false }` .MusicID .GeneratedTitle .Mp3Url .MidiUrl .MusicType .ModelType | js }}'
-                    {{/* hx-target ve hx-swap kaldırıldı */}}
-                    hx-indicator="#save-indicator-{{.MusicID}}" {{/* Dinamik ID */}}
-                    {{/* Başarılı istek sonrası butonu güncelle */}}
+                    {{/* Eğer .IsPublic context'te tanımlı değilse (örn. yeni üretilen müzik için), false varsay. */}}
+                    {{/* GenerateMusicHandler'ın context'e IsPublic:false eklemesi veya */}}
+                    {{/* GetMusicPage'in context'e mevcut IsPublic değerini eklemesi gerekir. */}}
+                    {{ $is_public_val := .IsPublic }}
+                    hx-vals='{{ printf `{"music_id": "%s", "title": "%s", "is_public": %t }` .MusicID .GeneratedTitle $is_public_val | js }}'
+                    hx-indicator="#save-indicator-{{.MusicID}}"
                     hx-on::after-request="if(event.detail.successful) {
                         const btn = document.getElementById('save-button-{{.MusicID}}');
                         if(btn) {
@@ -85,21 +86,25 @@
                             btn.innerHTML = `<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='mr-2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'></path><polyline points='17 21 17 13 7 13 7 21'></polyline><polyline points='7 3 7 8 15 8'></polyline></svg> Saved`;
                             btn.classList.add('opacity-50', 'cursor-not-allowed');
                             btn.classList.remove('hover:text-custom-primary');
+                            htmx.trigger('#global-success-container', 'showNotification', { detail: { message: 'Changes saved to library!' } });
                         }
+                     } else {
+                        htmx.trigger('#global-error-container', 'showNotification', { detail: { message: event.detail.xhr.responseText || 'Failed to save changes.' } });
                      }"
-                    id="save-button-{{.MusicID}}" {{/* Buton için dinamik ID */}}
+                    id="save-button-{{.MusicID}}"
                     class="flex items-center hover:text-custom-primary text-lg transition-colors p-2"
                     title="Save Changes to Library">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline>
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points='7 3 7 8 15 8'></polyline>
                 </svg>
-                <span class="button-text">Save</span> {{/* Metin için span */}}
+                <span class="button-text">Save</span>
                  <span id="save-indicator-{{.MusicID}}" class="htmx-indicator ml-2">
                      <svg class="animate-spin h-4 w-4 text-custom-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 </span>
             </button>
-            {{ else if not .Auth }} {{/* Giriş yapmamışsa */}}
-            <a href="/login?redirect=/" class="flex items-center hover:text-custom-primary text-lg transition-colors p-2" title="Login to Save">
+            {{ else if not .Auth }}
+            {{/* .CurrentURLPath music_handler.GetMusicPage veya frontend_handler.GenerateMusicHandler'dan gelmeli */}}
+            <a href="/login?redirect={{ urlquery (or .CurrentURLPath "/") }}" class="flex items-center hover:text-custom-primary text-lg transition-colors p-2" title="Login to Save">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
                 Login to Save
             </a>
@@ -108,9 +113,13 @@
     </div>
 </div>
 
-{{/* ... JavaScript Kodu (togglePlayPause vb.) ... */}}
 <script>
-    // JavaScript kodu aynı kalır, sadece görsel düzenlemeler yapıldı
+    // JavaScript değişkenleri ve fonksiyonları (togglePlayPause, setupAudioEvents, vb.)
+    // Bu script bloğu daha önce sağlandığı gibi kalabilir.
+    // Sadece closePlayer fonksiyonunun davranışına dikkat edin.
+    // Bu context'te (IsDetailPageContext true ise) kapatma butonu zaten görünmeyecek.
+    // Bu yüzden closePlayer fonksiyonu sadece ana sayfadaki oynatıcı için geçerli olacaktır.
+
     let audioPlayer = null;
     let progressInterval = null;
     let isDragging = false;
@@ -118,18 +127,30 @@
     function togglePlayPause(audioUrl, button) {
         if (!audioPlayer) {
             audioPlayer = new Audio(audioUrl);
-            setupAudioEvents();
+            setupAudioEvents(); // Olay dinleyicilerini sadece ilk oluşturmada ayarla
         }
         const playIcon = button.querySelector('.play-icon');
         const pauseIcon = button.querySelector('.pause-icon');
-        if (audioPlayer.paused) {
+
+        if (audioPlayer.src !== audioUrl && audioUrl) { // Eğer URL değiştiyse veya ilk kez yükleniyorsa
+            audioPlayer.src = audioUrl;
+            // Yeni ses için metadatanın yüklenmesini bekle
+             audioPlayer.addEventListener('loadedmetadata', function handler() {
+                audioPlayer.play();
+                if(playIcon) playIcon.classList.add('hidden');
+                if(pauseIcon) pauseIcon.classList.remove('hidden');
+                startProgressTracking();
+                audioPlayer.removeEventListener('loadedmetadata', handler); // Handler'ı kaldır
+            }, { once: true }); // Sadece bir kez çalışsın
+            audioPlayer.load(); // Yeni src'yi yükle
+        } else if (audioPlayer.paused) {
             audioPlayer.play();
             if(playIcon) playIcon.classList.add('hidden');
             if(pauseIcon) pauseIcon.classList.remove('hidden');
             startProgressTracking();
         } else {
             audioPlayer.pause();
-             if(playIcon) playIcon.classList.remove('hidden');
+            if(playIcon) playIcon.classList.remove('hidden');
             if(pauseIcon) pauseIcon.classList.add('hidden');
             stopProgressTracking();
         }
@@ -138,27 +159,31 @@
     function setupAudioEvents() {
         const progressBarContainer = document.getElementById('progressBarContainer');
         const progressHandle = document.getElementById('progressHandle');
-        const playButton = document.getElementById('playPauseButton');
+        const playButton = document.getElementById('playPauseButton'); // Bu ID'li butonun varlığından emin olun
+        
         if (!audioPlayer || !progressBarContainer || !progressHandle || !playButton) {
-             console.error("Required elements for audio event setup not found.");
+             console.error("Music Player: Required elements for audio event setup not found. Audio:", audioPlayer, "Container:", progressBarContainer, "Handle:", progressHandle, "PlayBtn:", playButton);
              return;
          }
+
         audioPlayer.addEventListener('loadedmetadata', function () {
             const durationEl = document.getElementById('duration');
             if (durationEl) durationEl.textContent = formatTime(audioPlayer.duration);
         });
+
         audioPlayer.addEventListener('ended', function () {
              const playIcon = playButton.querySelector('.play-icon');
              const pauseIcon = playButton.querySelector('.pause-icon');
              if(playIcon) playIcon.classList.remove('hidden');
              if(pauseIcon) pauseIcon.classList.add('hidden');
             stopProgressTracking();
-            audioPlayer.currentTime = 0;
+            if (audioPlayer) audioPlayer.currentTime = 0; // Hata kontrolü
             updateProgressBar(0);
             updateProgressHandle(0);
             const currentTimeEl = document.getElementById('currentTime');
             if (currentTimeEl) currentTimeEl.textContent = formatTime(0);
         });
+
         audioPlayer.addEventListener('error', (e) => {
              console.error("Audio playback error:", e);
              const playIcon = playButton.querySelector('.play-icon');
@@ -167,8 +192,10 @@
              if(pauseIcon) pauseIcon.classList.add('hidden');
              stopProgressTracking();
          });
+
+        // Progress bar tıklama ve sürükleme olayları
         progressBarContainer.addEventListener('click', function (e) {
-            if (!audioPlayer || !audioPlayer.duration) return;
+            if (!audioPlayer || !audioPlayer.duration || isNaN(audioPlayer.duration)) return;
             const rect = progressBarContainer.getBoundingClientRect();
             const pos = (e.clientX - rect.left) / rect.width;
             const newTime = pos * audioPlayer.duration;
@@ -178,17 +205,20 @@
             const currentTimeEl = document.getElementById('currentTime');
             if(currentTimeEl) currentTimeEl.textContent = formatTime(newTime);
         });
+
         progressHandle.addEventListener('mousedown', function (e) {
+            if (!audioPlayer || !audioPlayer.duration || isNaN(audioPlayer.duration)) return;
             isDragging = true;
             document.addEventListener('mousemove', handleDrag);
             document.addEventListener('mouseup', stopDrag);
-            e.preventDefault();
+            e.preventDefault(); // Sürüklerken metin seçilmesini engelle
         });
+
         function handleDrag(e) {
-            if (isDragging && audioPlayer && audioPlayer.duration) {
+            if (isDragging && audioPlayer && audioPlayer.duration && !isNaN(audioPlayer.duration)) {
                 const rect = progressBarContainer.getBoundingClientRect();
                 let pos = (e.clientX - rect.left) / rect.width;
-                pos = Math.max(0, Math.min(1, pos));
+                pos = Math.max(0, Math.min(1, pos)); // 0 ile 1 arasında sınırla
                 const newTime = pos * audioPlayer.duration;
                 audioPlayer.currentTime = newTime;
                 updateProgressBar(pos * 100);
@@ -197,6 +227,7 @@
                  if(currentTimeEl) currentTimeEl.textContent = formatTime(newTime);
             }
         }
+
         function stopDrag() {
             if (isDragging) {
                 isDragging = false;
@@ -204,31 +235,28 @@
                 document.removeEventListener('mouseup', stopDrag);
             }
         }
-        const prevButton = document.getElementById('prevButton');
-        const nextButton = document.getElementById('nextButton');
-        if(prevButton) {
-            prevButton.addEventListener('click', function () { /* ... */ });
-        }
-       if(nextButton) {
-            nextButton.addEventListener('click', function () { /* ... */ });
-       }
+        // Önceki/Sonraki parça butonları (bu örnekte işlevsel değil ama yerleri var)
+        // const prevButton = document.getElementById('prevButton');
+        // const nextButton = document.getElementById('nextButton');
+        // if(prevButton) { prevButton.addEventListener('click', function () { /* ... */ }); }
+        // if(nextButton) { nextButton.addEventListener('click', function () { /* ... */ }); }
     }
 
     function startProgressTracking() {
-        stopProgressTracking();
+        stopProgressTracking(); // Önceki interval'ı temizle
         progressInterval = setInterval(function () {
-            if (audioPlayer && !audioPlayer.paused && audioPlayer.duration) {
+            if (audioPlayer && !audioPlayer.paused && audioPlayer.duration && !isNaN(audioPlayer.duration)) {
                 const currentTime = audioPlayer.currentTime;
                 const duration = audioPlayer.duration;
                 const progressPercent = (currentTime / duration) * 100;
                 const currentTimeEl = document.getElementById('currentTime');
                 if(currentTimeEl) currentTimeEl.textContent = formatTime(currentTime);
                 updateProgressBar(progressPercent);
-                if (!isDragging) {
+                if (!isDragging) { // Sadece sürüklenmiyorsa handle'ı güncelle
                     updateProgressHandle(progressPercent);
                 }
             }
-        }, 250);
+        }, 250); // 250ms'de bir güncelle
     }
 
     function stopProgressTracking() {
@@ -261,21 +289,29 @@
         return minutes + ':' + (remainingSeconds < 10 ? '0' : '') + remainingSeconds;
     }
 
+    // closePlayer fonksiyonu sadece ana sayfadaki oynatıcı için (`player-state-container` varsa) anlamlıdır.
+    // Detay sayfasında bu buton görünmeyeceği için bu fonksiyon oradan çağrılmayacak.
     function closePlayer() {
         if (audioPlayer) {
             audioPlayer.pause();
-            audioPlayer.src = '';
-            audioPlayer.load();
-            audioPlayer = null;
+            audioPlayer.src = ''; // Kaynağı boşalt
+            audioPlayer.load();   // Boş kaynağı yükleyerek oynatıcıyı sıfırla
+            audioPlayer = null;   // Referansı kaldır
         }
-        stopProgressTracking();
+        stopProgressTracking(); // Progress takibini durdur
+
         const containerElement = document.getElementById('player-state-container');
+        // Bu ID sadece ana sayfada (home.html) var.
         if (!containerElement) {
-            console.error("Player state container (#player-state-container) not found.");
+            console.warn("closePlayer: #player-state-container not found. This function is intended for the homepage player.");
+            // Eğer bir şekilde detay sayfasında bu fonksiyon çağrılırsa (ki buton olmamalı),
+            // oynatıcıyı DOM'dan kaldırmak bir fallback olabilir.
             const playerElement = document.getElementById('musicPlayer');
             if(playerElement) playerElement.remove();
             return;
         }
+
+        // Ana sayfada, oynatıcıyı kaldırıp yerine "Play" butonunu geri yükle
         if (typeof htmx !== 'undefined') {
             htmx.ajax('GET', '/partials/play-button', { target: '#player-state-container', swap: 'innerHTML' })
              .catch(error => {
@@ -283,27 +319,45 @@
                  containerElement.innerHTML = '<p class="text-red-500">Error loading controls.</p>';
              });
         } else {
-            console.error("htmx object is not defined.");
-            containerElement.innerHTML = '';
-             const playerElement = document.getElementById('musicPlayer');
-             if(playerElement) playerElement.remove();
+            console.error("htmx object is not defined. Cannot restore play button.");
+            containerElement.innerHTML = ''; // Hedef konteyneri temizle
+             const playerElement = document.getElementById('musicPlayer'); // Oynatıcıyı bul
+             if(playerElement) playerElement.remove(); // Ve kaldır
         }
     }
 
+    // DOMContentLoaded içinde ilk oynatıcı animasyonu ve gerekirse ses olayı kurulumu
     document.addEventListener('DOMContentLoaded', function () {
        const playerElement = document.getElementById('musicPlayer');
        if (playerElement && !playerElement.classList.contains('animate-in-done')) {
            playerElement.classList.add('translate-y-full', 'opacity-0', 'transition-all', 'duration-300', 'ease-out');
-           void playerElement.offsetWidth;
+           void playerElement.offsetWidth; // Reflow tetikle
            setTimeout(() => {
                playerElement.classList.remove('translate-y-full', 'opacity-0');
                playerElement.classList.add('animate-in-done');
-           }, 50);
+           }, 50); // Kısa bir gecikme
        }
-       // Player ilk yüklendiğinde setupAudioEvents çağrılmalı (eğer ses varsa)
-       const playButton = document.getElementById('playPauseButton');
-       if(playButton && audioPlayer == null && '{{.Mp3Url}}') { // Sadece ses varsa ve player henüz kurulmadıysa
+       
+              const mp3UrlAvailable = {{if .Mp3Url}}true{{else}}false{{end}};
+
+       if(playPauseButton && mp3UrlAvailable && !audioPlayer) {
+           // togglePlayPause çağrısı doğrudan sesi başlatacağı için, sadece setupAudioEvents çağırıp
+           // kullanıcının play butonuna basmasını bekleyebiliriz.
+           // Veya, eğer otomatik çalma isteniyorsa, togglePlayPause çağrılabilir.
+           // Şimdilik, sadece setup yapalım, kullanıcı başlatsın.
+           audioPlayer = new Audio(); // Oynatıcıyı oluştur ama src'yi hemen atama
            setupAudioEvents();
+           // İlk yüklemede currentTime ve duration'ı ayarlamak için:
+           const tempAudioForMeta = new Audio('{{.Mp3Url}}');
+           tempAudioForMeta.addEventListener('loadedmetadata', function metaInit() {
+                const durationEl = document.getElementById('duration');
+                if (durationEl) durationEl.textContent = formatTime(tempAudioForMeta.duration);
+                const currentTimeEl = document.getElementById('currentTime');
+                if (currentTimeEl) currentTimeEl.textContent = formatTime(0);
+                tempAudioForMeta.removeEventListener('loadedmetadata', metaInit);
+           }, {once: true});
+
+
        }
     });
 </script>

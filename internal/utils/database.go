@@ -59,7 +59,7 @@ func MigrateDB(db *gorm.DB) error {
 		return fmt.Errorf("failed to create uuid extension: %w", err)
 	}
 
-	err := db.AutoMigrate(&models.User{}, &models.MusicType{}, &models.ModelType{}, &models.Music{})
+	err := db.AutoMigrate(&models.User{}, &models.MusicType{}, &models.ModelType{}, &models.Music{}, &models.UserLikesMusic{})
 	if err != nil {
 		return fmt.Errorf("migration failed: %w", err)
 	}

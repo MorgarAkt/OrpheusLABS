@@ -1,0 +1,30 @@
+{{ define "partials/_like_button_partial.html" }}
+{{/* Bu partial'a gönderilmesi beklenen context ('.') bir müzik öğesidir ve şunları içermelidir:
+    - ID (string)      -> .ID olarak erişilecek (MusicID yerine)
+    - LikesCount (int) -> .LikesCount olarak erişilecek
+    - HasLiked (bool)  -> .HasLiked olarak erişilecek (mevcut kullanıcının beğenme durumu)
+    
+    Ayrıca, bu partial çağrıldığı yerden (örn: musics-pagination.html) üst context'teki
+    Auth durumuna ($.Auth) erişebilmelidir.
+*/}}
+<button hx-post="/api/v1/music/{{.ID}}/toggle-like" {{/* .ID kullandık */}}
+        hx-target="#like-section-list-{{.ID}}" {{/* Dinamik target ID */}}
+        hx-swap="innerHTML"
+        {{ if not $.Auth }} 
+            disabled title="Müziği beğenmek için giriş yapın" 
+        {{ else }} 
+            title="{{if .HasLiked}}Beğenmekten Vazgeç{{else}}Beğen{{end}}" 
+        {{ end }}
+        class="p-2 rounded-full hover:bg-gray-100 transition-colors focus:outline-none
+               {{if .HasLiked}} text-custom-primary {{else}} text-gray-500 hover:text-custom-primary {{end}}
+               {{ if not $.Auth }} opacity-50 cursor-not-allowed {{ end }}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+        {{ if .HasLiked }}
+        <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/>
+        {{ else }}
+        <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z"/>
+        {{ end }}
+    </svg>
+</button>
+<span class="text-lg font-semibold text-gray-700">{{.LikesCount}}</span>
+{{ end }}
